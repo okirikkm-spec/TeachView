@@ -40,6 +40,7 @@ src/frontend/dist/
 ### Uploads ###
 uploads/
 
-### Env ###
+### Secrets ###
+src/main/resources/application.properties
 .env
 *.env
