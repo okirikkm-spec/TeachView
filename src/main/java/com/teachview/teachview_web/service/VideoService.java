@@ -56,7 +56,7 @@ public class VideoService {
     }
 
     public VideoResponseDto uploadAndProcess(MultipartFile file, String title,
-            MultipartFile thumbnail, User uploader,
+            String description, MultipartFile thumbnail, User uploader,
             List<String> tags) {
             
         String videoId = UUID.randomUUID().toString();
@@ -123,6 +123,7 @@ public class VideoService {
             video.setTitle(title != null && !title.isBlank()
                 ? title
                 : file.getOriginalFilename());
+            video.setDescription(description);
             video.setFilePath("uploads/videos/" + videoId + "/master.m3u8");
             video.setThumbnailPath(thumbnailPath);
             video.setDuration(duration);
@@ -143,6 +144,67 @@ public class VideoService {
             } catch (IOException ignored) {
             }
         }
+    }
+
+    @Transactional
+    public VideoResponseDto updateVideo(Long id, String title, String description,
+                                         List<String> tags, MultipartFile thumbnail, User currentUser) {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new VideoNotFoundException(id));
+        if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Нет прав на редактирование этого видео");
+        }
+        if (title != null && !title.isBlank()) {
+            video.setTitle(title);
+        }
+        if (description != null) {
+            video.setDescription(description);
+        }
+        if (tags != null) {
+            video.setTags(tags);
+        }
+        if (thumbnail != null && !thumbnail.isEmpty()) {
+            String videoDir = video.getFilePath().replace("master.m3u8", "");
+            String ext = getExtension(thumbnail.getOriginalFilename());
+            Path thumbDest = Paths.get(videoDir, "thumbnail." + ext);
+            try {
+                Files.deleteIfExists(thumbDest);
+                Files.copy(thumbnail.getInputStream(), thumbDest);
+                video.setThumbnailPath(videoDir + "thumbnail." + ext);
+            } catch (IOException e) {
+                // не критично
+            }
+        }
+        videoRepository.save(video);
+        return VideoResponseDto.from(video);
+    }
+
+    public List<VideoResponseDto> getRelatedVideos(Long videoId, int limit) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
+        List<Video> related = new ArrayList<>();
+
+        // По тегам
+        if (video.getTags() != null && !video.getTags().isEmpty()) {
+            List<Video> byTags = videoRepository.findByTagsInAndIdNot(video.getTags(), videoId);
+            related.addAll(byTags);
+        }
+
+        // По автору (если мало по тегам)
+        if (related.size() < limit) {
+            List<Video> byAuthor = videoRepository.findByUploadedByIdAndIdNot(
+                    video.getUploadedBy().getId(), videoId);
+            for (Video v : byAuthor) {
+                if (related.stream().noneMatch(r -> r.getId().equals(v.getId()))) {
+                    related.add(v);
+                }
+            }
+        }
+
+        return related.stream()
+                .limit(limit)
+                .map(VideoResponseDto::from)
+                .toList();
     }
 
     @Transactional

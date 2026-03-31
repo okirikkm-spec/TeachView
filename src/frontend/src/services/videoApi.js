@@ -75,3 +75,143 @@ export async function recordView(id) {
     headers: getDefaultHeaders(),
   });
 }
+
+export async function updateVideo(id, { title, description, tags, thumbnail }) {
+  const formData = new FormData();
+  if (title != null) formData.append("title", title);
+  if (description != null) formData.append("description", description);
+  if (tags) tags.forEach(tag => formData.append("tags", tag));
+  if (thumbnail) formData.append("thumbnail", thumbnail);
+
+  const res = await fetch(`${API_BASE}/api/videos/${id}`, {
+    method: "PUT",
+    body: formData,
+    headers: {
+      "ngrok-skip-browser-warning": "true",
+      "Authorization": `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  if (!res.ok) throw new Error("Ошибка при обновлении видео");
+  return res.json();
+}
+
+export async function fetchRelatedVideos(id, limit = 8) {
+  const res = await fetch(`${API_BASE}/api/videos/${id}/related?limit=${limit}`, {
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// --- Rating API ---
+
+export async function getRating(videoId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/rating`, {
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) return { average: 0, count: 0, myRating: 0 };
+  return res.json();
+}
+
+export async function rateVideo(videoId, value) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/rating`, {
+    method: 'POST',
+    headers: {
+      ...getDefaultHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error("Ошибка при оценке видео");
+  return res.json();
+}
+
+// --- Comments API ---
+
+export async function fetchComments(videoId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments`, {
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function addComment(videoId, text, hidden = false) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments`, {
+    method: 'POST',
+    headers: {
+      ...getDefaultHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text, hidden }),
+  });
+  if (!res.ok) throw new Error("Ошибка при добавлении комментария");
+  return res.json();
+}
+
+export async function editComment(videoId, commentId, text) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments/${commentId}`, {
+    method: 'PUT',
+    headers: {
+      ...getDefaultHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error("Ошибка при редактировании комментария");
+  return res.json();
+}
+
+export async function deleteComment(videoId, commentId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка при удалении комментария");
+}
+
+export async function likeComment(videoId, commentId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments/${commentId}/like`, {
+    method: 'POST',
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка");
+  return res.json();
+}
+
+export async function dislikeComment(videoId, commentId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments/${commentId}/dislike`, {
+    method: 'POST',
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка");
+  return res.json();
+}
+
+export async function authorLikeComment(videoId, commentId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments/${commentId}/author-like`, {
+    method: 'POST',
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка");
+  return res.json();
+}
+
+// --- Favorites API ---
+
+export async function toggleFavorite(videoId) {
+  const res = await fetch(`${API_BASE}/api/favorites/${videoId}`, {
+    method: 'POST',
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка при изменении избранного");
+  return res.json();
+}
+
+export async function fetchFavorites() {
+  const res = await fetch(`${API_BASE}/api/favorites`, {
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка загрузки избранного");
+  return res.json();
+}

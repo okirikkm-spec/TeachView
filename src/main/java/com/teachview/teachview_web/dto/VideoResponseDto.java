@@ -12,18 +12,24 @@ public class VideoResponseDto {
     private String title;
     private String filePath;
     private String thumbnailUrl;
+    private String description;
     private Long duration;
     private List<String> tags;
+    private Double averageRating;
+    private Integer ratingCount;
+    private Integer myRating;
     private Long uploadedById;
     private String uploadedBy;
     private String uploaderAvatarUrl;
     private Long viewCount = 0L;
+    private boolean favorite;
 
     public static VideoResponseDto from(Video video) {
         VideoResponseDto dto = new VideoResponseDto();
         dto.setId(video.getId());
         dto.setTitle(video.getTitle());
         dto.setFilePath(video.getFilePath().replace("\\", "/"));
+        dto.setDescription(video.getDescription());
         if (video.getThumbnailPath() != null) {
             dto.setThumbnailUrl(video.getThumbnailPath().replace("\\", "/"));
         }

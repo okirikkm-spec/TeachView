@@ -33,6 +33,7 @@ public class SecurityConfig {
             .requestMatchers("/uploads/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/videos/**").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/videos/*/view").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

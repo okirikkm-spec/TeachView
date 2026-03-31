@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoCard from '../components/VideoCard';
 import { fetchMe, fetchUserById, updateMe, uploadAvatar, changePassword, API_BASE } from '../services/authApi';
-import { fetchMyVideos, fetchUserVideos } from '../services/videoApi';
+import { fetchMyVideos, fetchUserVideos, fetchFavorites } from '../services/videoApi';
 import { VideoUpload } from '../components/VideoUpload';
+import VideoEditModal from '../components/VideoEditModal';
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -31,7 +32,8 @@ export default function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState('my');
   const [searchQuery, setSearchQuery] = useState('');
-  const favoriteVideos = []; // пока пусто, в будущем загрузка из API
+  const [editVideoId, setEditVideoId] = useState(null);
+  const [favoriteVideos, setFavoriteVideos] = useState([]);
 
   const isOwnProfile = !id || (currentUser && String(currentUser.id) === String(id));
 
@@ -43,11 +45,12 @@ export default function ProfilePage() {
 
     if (!id) {
       // Свой профиль (маршрут /profile)
-      Promise.all([fetchMe(), fetchMyVideos()])
-        .then(([userData, videosData]) => {
+      Promise.all([fetchMe(), fetchMyVideos(), fetchFavorites()])
+        .then(([userData, videosData, favData]) => {
           setCurrentUser(userData);
           setUser(userData);
           setVideos(videosData);
+          setFavoriteVideos(favData);
           setFormUsername(userData.username || '');
           setFormEmail(userData.email || '');
           setLoading(false);
@@ -66,6 +69,7 @@ export default function ProfilePage() {
           if (String(meData.id) === String(id)) {
             setFormUsername(userData.username || '');
             setFormEmail(userData.email || '');
+            fetchFavorites().then(setFavoriteVideos).catch(() => {});
           }
           setLoading(false);
         })
@@ -316,7 +320,7 @@ export default function ProfilePage() {
           ) : (
             <div className="profile-video-grid">
               {displayedVideos.map(v => (
-                <VideoCard key={v.id} video={v} showEditButton={isOwnProfile && activeTab === 'my'} />
+                <VideoCard key={v.id} video={v} showEditButton={isOwnProfile && activeTab === 'my'} onEdit={(vid) => setEditVideoId(vid)} />
               ))}
             </div>
           )}
@@ -324,6 +328,17 @@ export default function ProfilePage() {
 
 
       </div>
+
+      {editVideoId && (
+        <VideoEditModal
+          videoId={editVideoId}
+          onClose={() => setEditVideoId(null)}
+          onSaved={() => {
+            setEditVideoId(null);
+            (isOwnProfile && !id ? fetchMyVideos() : fetchUserVideos(id)).then(setVideos);
+          }}
+        />
+      )}
     </>
   );
 }

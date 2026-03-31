@@ -21,6 +21,8 @@ public class Video {
     private String contentType;
     
     private String thumbnailPath;
+    @Column(columnDefinition = "TEXT")
+    private String description;
     private Long duration;
     private Long viewCount = 0L;
 
