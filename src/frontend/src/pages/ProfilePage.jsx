@@ -6,6 +6,9 @@ import { fetchMe, fetchUserById, updateMe, uploadAvatar, changePassword, API_BAS
 import { fetchMyVideos, fetchUserVideos, fetchFavorites } from '../services/videoApi';
 import { VideoUpload } from '../components/VideoUpload';
 import VideoEditModal from '../components/VideoEditModal';
+import SubscriptionTierManager from '../components/SubscriptionTierManager';
+import SubscriptionPanel from '../components/SubscriptionPanel';
+import { fetchSubscriberCount } from '../services/subscriptionApi';
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -34,6 +37,7 @@ export default function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editVideoId, setEditVideoId] = useState(null);
   const [favoriteVideos, setFavoriteVideos] = useState([]);
+  const [subscriberCount, setSubscriberCount] = useState(0);
 
   const isOwnProfile = !id || (currentUser && String(currentUser.id) === String(id));
 
@@ -53,6 +57,7 @@ export default function ProfilePage() {
           setFavoriteVideos(favData);
           setFormUsername(userData.username || '');
           setFormEmail(userData.email || '');
+          fetchSubscriberCount(userData.id).then(setSubscriberCount).catch(() => {});
           setLoading(false);
         })
         .catch(err => {
@@ -71,6 +76,7 @@ export default function ProfilePage() {
             setFormEmail(userData.email || '');
             fetchFavorites().then(setFavoriteVideos).catch(() => {});
           }
+          fetchSubscriberCount(userData.id).then(setSubscriberCount).catch(() => {});
           setLoading(false);
         })
         .catch(err => {
@@ -168,7 +174,7 @@ export default function ProfilePage() {
           <div className="profile-header-info">
             <h1 className="profile-name">{user?.username}</h1>
             <p className="profile-email">{user?.email}</p>
-            <p className="profile-stats">{videos.length} видео</p>
+            <p className="profile-stats">{videos.length} видео · {subscriberCount} подписчиков</p>
           </div>
           {isOwnProfile && (
             <button
@@ -290,6 +296,14 @@ export default function ProfilePage() {
 
             </div>
           </div>
+        )}
+
+        {isOwnProfile && (
+          <SubscriptionTierManager userId={currentUser.id} />
+        )}
+
+        {!isOwnProfile && currentUser && user && (
+          <SubscriptionPanel authorId={user.id} currentUserId={currentUser.id} />
         )}
 
         {isOwnProfile && (

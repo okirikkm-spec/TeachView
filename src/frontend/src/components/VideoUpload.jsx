@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { uploadVideo } from '../services/videoApi';
+import { fetchTiers } from '../services/subscriptionApi';
+import { fetchMe } from '../services/authApi';
 
 export function VideoUpload({ onUploadSuccess }) {
   const [videoFile, setVideoFile] = useState(null);
@@ -11,6 +13,12 @@ export function VideoUpload({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState(null);
   const [open, setOpen] = useState(false);
+  const [requiredTierId, setRequiredTierId] = useState('');
+  const [myTiers, setMyTiers] = useState([]);
+
+  useEffect(() => {
+    fetchMe().then(me => fetchTiers(me.id)).then(setMyTiers).catch(() => {});
+  }, []);
 
 
   const handleVideoChange = (e) => {
@@ -55,7 +63,7 @@ export function VideoUpload({ onUploadSuccess }) {
     setUploading(true);
     setStatus({ type: 'info', text: 'Обработка видео (FFmpeg)...' });
     try {
-      await uploadVideo(videoFile, title, thumbnailFile, tags);
+      await uploadVideo(videoFile, title, thumbnailFile, tags, requiredTierId || null);
       setStatus({ type: 'success', text: 'Видео успешно загружено.' });
       setVideoFile(null);
       setThumbnailFile(null);
@@ -63,6 +71,7 @@ export function VideoUpload({ onUploadSuccess }) {
       setTitle('');
       setTags([]);
       setTagInput('');
+      setRequiredTierId('');
       onUploadSuccess();
     } catch (err) {
       setStatus({ type: 'error', text: err.message || 'Ошибка при загрузке видео.' });
@@ -132,6 +141,23 @@ export function VideoUpload({ onUploadSuccess }) {
               />
             </div>
           </div>
+
+          {myTiers.length > 0 && (
+            <div className="input-group">
+              <label className="input-label">Доступ по подписке</label>
+              <select
+                className="input"
+                value={requiredTierId}
+                onChange={e => setRequiredTierId(e.target.value)}
+                disabled={uploading}
+              >
+                <option value="">Бесплатное видео (без подписки)</option>
+                {myTiers.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} — {t.price} &#8381;/мес</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="upload-row">
 

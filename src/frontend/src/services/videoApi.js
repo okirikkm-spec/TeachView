@@ -13,7 +13,7 @@ export async function fetchAllVideos() {
   return res.json();
 }
 
-export async function uploadVideo(file, title = '', thumbnailFile = null, tags = []) {
+export async function uploadVideo(file, title = '', thumbnailFile = null, tags = [], requiredTierId = null) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", title || file.name);
@@ -21,6 +21,9 @@ export async function uploadVideo(file, title = '', thumbnailFile = null, tags =
     formData.append("thumbnail", thumbnailFile);
   }
   tags.forEach(tag => formData.append("tags", tag));
+  if (requiredTierId) {
+    formData.append("requiredTierId", requiredTierId);
+  }
 
   const res = await fetch(`${API_BASE}/api/videos/upload`, {
     method: "POST",
@@ -76,12 +79,15 @@ export async function recordView(id) {
   });
 }
 
-export async function updateVideo(id, { title, description, tags, thumbnail }) {
+export async function updateVideo(id, { title, description, tags, thumbnail, requiredTierId }) {
   const formData = new FormData();
   if (title != null) formData.append("title", title);
   if (description != null) formData.append("description", description);
   if (tags) tags.forEach(tag => formData.append("tags", tag));
   if (thumbnail) formData.append("thumbnail", thumbnail);
+  if (requiredTierId !== undefined) {
+    formData.append("requiredTierId", requiredTierId === null ? "" : requiredTierId);
+  }
 
   const res = await fetch(`${API_BASE}/api/videos/${id}`, {
     method: "PUT",

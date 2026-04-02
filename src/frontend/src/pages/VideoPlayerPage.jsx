@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getVideoById, getStreamUrl, recordView, toggleFavorite } from '../services/videoApi';
 import { fetchMe } from '../services/authApi';
+import { fetchTiers } from '../services/subscriptionApi';
 import { MyPlayer } from '../components/VideoJsPlayer';
 import Navbar from '../components/Navbar';
 import StarRating from '../components/StarRating';
@@ -25,6 +26,8 @@ export default function VideoPlayerPage() {
   const [showDesc, setShowDesc] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [tiers, setTiers] = useState([]);
 
   const handleViewReached = useCallback(() => recordView(id), [id]);
 
@@ -38,6 +41,10 @@ export default function VideoPlayerPage() {
       setVideo(data);
       setCurrentUser(me);
       setIsFavorite(data.favorite ?? false);
+      setHasAccess(data.hasAccess ?? true);
+      if (!data.hasAccess && data.uploadedById) {
+        fetchTiers(data.uploadedById).then(setTiers).catch(() => {});
+      }
       setLoading(false);
     }).catch(err => {
       setError(err.message);
@@ -68,10 +75,48 @@ export default function VideoPlayerPage() {
       <div className="video-player-page-layout">
 
         <div className="video-player-wrap">
-          <StablePlayer
-            src={getStreamUrl(video.filePath)}
-            onViewReached={handleViewReached}
-          />
+          {hasAccess ? (
+            <StablePlayer
+              src={getStreamUrl(video.filePath)}
+              onViewReached={handleViewReached}
+            />
+          ) : (
+            <div className="video-paywall">
+              <div className="video-paywall-content">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <h2 className="video-paywall-title">Эксклюзивный контент</h2>
+                <p className="video-paywall-text">
+                  Это видео доступно по подписке
+                  {video.requiredTierName && <> уровня <strong>{video.requiredTierName}</strong></>}
+                  {video.requiredTierPrice && <> ({video.requiredTierPrice} &#8381;/мес)</>}
+                </p>
+                {tiers.length > 0 && (
+                  <div className="video-paywall-tiers">
+                    {tiers.filter(t => t.price >= (video.requiredTierPrice || 0)).map(t => (
+                      <button
+                        key={t.id}
+                        className="btn btn-primary"
+                        onClick={() => navigate(`/profile/${video.uploadedById}`)}
+                      >
+                        {t.name} — {t.price} &#8381;/мес
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {tiers.length === 0 && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => navigate(`/profile/${video.uploadedById}`)}
+                  >
+                    Перейти к автору
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="video-player-content-row">

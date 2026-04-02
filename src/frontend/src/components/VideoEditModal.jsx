@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { updateVideo, getVideoById, getThumbnailUrl } from '../services/videoApi';
+import { fetchTiers } from '../services/subscriptionApi';
 
 export default function VideoEditModal({ videoId, onClose, onSaved }) {
   const [video, setVideo] = useState(null);
@@ -12,6 +13,8 @@ export default function VideoEditModal({ videoId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null);
   const fileRef = useRef(null);
+  const [requiredTierId, setRequiredTierId] = useState('');
+  const [myTiers, setMyTiers] = useState([]);
 
   useEffect(() => {
     getVideoById(videoId).then(data => {
@@ -19,8 +22,12 @@ export default function VideoEditModal({ videoId, onClose, onSaved }) {
       setTitle(data.title || '');
       setDescription(data.description || '');
       setTags(data.tags || []);
+      setRequiredTierId(data.requiredTierId ? String(data.requiredTierId) : '');
       if (data.thumbnailUrl) {
         setThumbPreview(getThumbnailUrl(data.thumbnailUrl));
+      }
+      if (data.uploadedById) {
+        fetchTiers(data.uploadedById).then(setMyTiers).catch(() => {});
       }
     });
   }, [videoId]);
@@ -60,6 +67,7 @@ export default function VideoEditModal({ videoId, onClose, onSaved }) {
         description,
         tags,
         thumbnail: thumbnailFile,
+        requiredTierId: requiredTierId === '' ? null : requiredTierId,
       });
       setStatus('ok');
       if (onSaved) onSaved(result);
@@ -144,6 +152,22 @@ export default function VideoEditModal({ videoId, onClose, onSaved }) {
               <input type="file" accept="image/*" hidden ref={fileRef} onChange={handleThumbnailChange} />
             </div>
           </div>
+
+          {myTiers.length > 0 && (
+            <div className="input-group">
+              <label className="input-label">Доступ по подписке</label>
+              <select
+                className="input"
+                value={requiredTierId}
+                onChange={e => setRequiredTierId(e.target.value)}
+              >
+                <option value="">Бесплатное видео (без подписки)</option>
+                {myTiers.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} — {t.price} &#8381;/мес</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {status === 'ok'    && <p className="upload-status success">Сохранено!</p>}
           {status === 'error' && <p className="upload-status error">Ошибка сохранения</p>}

@@ -38,5 +38,7 @@ public class Video {
     @JoinColumn(name = "uploaded_by_id")
     private User uploadedBy;
 
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "required_tier_id")
+    private SubscriptionTier requiredTier;
 }

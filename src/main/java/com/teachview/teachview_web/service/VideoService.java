@@ -1,10 +1,12 @@
 package com.teachview.teachview_web.service;
 
 import com.teachview.teachview_web.dto.VideoResponseDto;
+import com.teachview.teachview_web.entity.SubscriptionTier;
 import com.teachview.teachview_web.entity.User;
 import com.teachview.teachview_web.entity.Video;
 import com.teachview.teachview_web.exception.VideoNotFoundException;
 import com.teachview.teachview_web.exception.VideoProcessingException;
+import com.teachview.teachview_web.repository.SubscriptionTierRepository;
 import com.teachview.teachview_web.repository.VideoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,9 +25,11 @@ public class VideoService {
     private static final String UPLOAD_DIR = "uploads/videos/";
 
     private final VideoRepository videoRepository;
+    private final SubscriptionTierRepository subscriptionTierRepository;
 
-    public VideoService(VideoRepository videoRepository) {
+    public VideoService(VideoRepository videoRepository, SubscriptionTierRepository subscriptionTierRepository) {
         this.videoRepository = videoRepository;
+        this.subscriptionTierRepository = subscriptionTierRepository;
     }
 
     public List<VideoResponseDto> getAllVideos() {
@@ -213,6 +217,32 @@ public class VideoService {
             .orElseThrow(() -> new VideoNotFoundException(id));
         Long current = video.getViewCount() != null ? video.getViewCount() : 0L;
         video.setViewCount(current + 1);
+        videoRepository.save(video);
+    }
+
+    public boolean checkAccess(Long videoId, User user, SubscriptionService subscriptionService) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
+        return subscriptionService.hasAccessToVideo(video, user);
+    }
+
+    @Transactional
+    public void setRequiredTier(Long videoId, Long tierId, User currentUser) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new VideoNotFoundException(videoId));
+        if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Нет прав на редактирование этого видео");
+        }
+        if (tierId == null) {
+            video.setRequiredTier(null);
+        } else {
+            SubscriptionTier tier = subscriptionTierRepository.findById(tierId)
+                    .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
+            if (!tier.getAuthor().getId().equals(currentUser.getId())) {
+                throw new RuntimeException("Этот уровень подписки принадлежит другому автору");
+            }
+            video.setRequiredTier(tier);
+        }
         videoRepository.save(video);
     }
 

@@ -34,6 +34,8 @@ public class SecurityConfig {
             .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/videos/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/videos/*/view").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/tiers/**").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/count/**").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

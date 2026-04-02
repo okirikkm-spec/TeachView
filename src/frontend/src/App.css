@@ -439,7 +439,7 @@ body {
 }
 .video-card:hover {
   border-color: var(--border-light);
-  transform: translateY(2px);
+  transform: translateY(-1px);
 }
 
 /* Превью 16:9 */
@@ -1473,5 +1473,309 @@ body {
   background:
     radial-gradient(ellipse 60% 50% at 50% 0%, rgba(108, 92, 231, 0.08) 0%, transparent 70%),
     var(--bg);
+}
+
+/* ─── Remove number input spinners ──────────────────────────── */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ─── Subscription Tiers (author management) ─────────────────── */
+
+.tier-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tier-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tier-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tier-card-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tier-card-price {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.tier-card-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tier-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tier-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.tier-form-title {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.tier-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .tier-form-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Subscription Panel (user-facing) ───────────────────────── */
+
+
+
+.tier-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  padding-top: 20px;
+}
+
+.tier-offer-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tier-offer-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+}
+
+.tier-offer-name {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.tier-offer-price {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.tier-offer-price span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.tier-offer-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Active subscription banner */
+.sub-active-banner {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.sub-active-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.sub-active-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.sub-active-tier {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sub-active-price {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.sub-active-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sub-upgrade-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sub-upgrade-label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ─── Payment Modal ──────────────────────────────────────────── */
+
+.payment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payment-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+}
+
+.payment-modal.payment-processing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 32px;
+}
+
+.payment-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.payment-summary {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.payment-tier-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.payment-tier-price {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.payment-tier-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.payment-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ─── Video Paywall ──────────────────────────────────────────── */
+
+.video-paywall {
+  aspect-ratio: 16 / 9;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-paywall-content {
+  text-align: center;
+  padding: 32px;
+  max-width: 480px;
+}
+
+.video-paywall-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 16px;
+}
+
+.video-paywall-text {
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.video-paywall-tiers {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
 }
 

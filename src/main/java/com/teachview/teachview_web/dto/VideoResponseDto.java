@@ -23,6 +23,10 @@ public class VideoResponseDto {
     private String uploaderAvatarUrl;
     private Long viewCount = 0L;
     private boolean favorite;
+    private Long requiredTierId;
+    private String requiredTierName;
+    private Integer requiredTierPrice;
+    private boolean hasAccess = true;
 
     public static VideoResponseDto from(Video video) {
         VideoResponseDto dto = new VideoResponseDto();
@@ -42,6 +46,11 @@ public class VideoResponseDto {
             dto.setUploaderAvatarUrl(avatarPath != null ? "/" + avatarPath : null);
         }
         dto.setViewCount(video.getViewCount() != null ? video.getViewCount() : 0L);
+        if (video.getRequiredTier() != null) {
+            dto.setRequiredTierId(video.getRequiredTier().getId());
+            dto.setRequiredTierName(video.getRequiredTier().getName());
+            dto.setRequiredTierPrice(video.getRequiredTier().getPrice());
+        }
         return dto;
     }
 }

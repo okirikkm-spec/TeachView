@@ -4,6 +4,7 @@ import com.teachview.teachview_web.dto.VideoResponseDto;
 import com.teachview.teachview_web.entity.User;
 import com.teachview.teachview_web.service.FavoriteService;
 import com.teachview.teachview_web.service.RatingService;
+import com.teachview.teachview_web.service.SubscriptionService;
 import com.teachview.teachview_web.service.VideoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,11 +21,14 @@ public class VideoController {
     private final VideoService videoService;
     private final FavoriteService favoriteService;
     private final RatingService ratingService;
+    private final SubscriptionService subscriptionService;
 
-    public VideoController(VideoService videoService, FavoriteService favoriteService, RatingService ratingService) {
+    public VideoController(VideoService videoService, FavoriteService favoriteService,
+                           RatingService ratingService, SubscriptionService subscriptionService) {
         this.videoService = videoService;
         this.favoriteService = favoriteService;
         this.ratingService = ratingService;
+        this.subscriptionService = subscriptionService;
     }
 
     @GetMapping("/all")
@@ -51,6 +55,8 @@ public class VideoController {
         if (currentUser != null) {
             dto.setFavorite(favoriteService.isFavorite(id, currentUser.getId()));
         }
+        boolean hasAccess = videoService.checkAccess(id, currentUser, subscriptionService);
+        dto.setHasAccess(hasAccess);
         return dto;
     }
 
@@ -61,9 +67,14 @@ public class VideoController {
         @RequestParam(value = "description", required = false)   String description,
         @RequestParam(value = "thumbnail",   required = false)   MultipartFile thumbnail,
         @RequestParam(value = "tags",        required = false)   List<String> tags,
+        @RequestParam(value = "requiredTierId", required = false) Long requiredTierId,
         @AuthenticationPrincipal User currentUser
     ) {
         VideoResponseDto result = videoService.uploadAndProcess(file, title, description, thumbnail, currentUser, tags);
+        if (requiredTierId != null) {
+            videoService.setRequiredTier(result.getId(), requiredTierId, currentUser);
+            result = videoService.getVideoById(result.getId());
+        }
         return ResponseEntity.ok(result);
     }
 
@@ -74,9 +85,15 @@ public class VideoController {
         @RequestParam(value = "description", required = false) String description,
         @RequestParam(value = "tags", required = false) List<String> tags,
         @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
+        @RequestParam(value = "requiredTierId", required = false) String requiredTierId,
         @AuthenticationPrincipal User currentUser
     ) {
         VideoResponseDto result = videoService.updateVideo(id, title, description, tags, thumbnail, currentUser);
+        if (requiredTierId != null) {
+            Long tierId = requiredTierId.isEmpty() || "null".equals(requiredTierId) ? null : Long.parseLong(requiredTierId);
+            videoService.setRequiredTier(id, tierId, currentUser);
+            result = videoService.getVideoById(id);
+        }
         return ResponseEntity.ok(result);
     }
 
