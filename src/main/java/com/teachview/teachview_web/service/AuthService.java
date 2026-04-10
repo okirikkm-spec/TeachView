@@ -14,10 +14,11 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    
+
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
     public AuthDto.AuthResponse register(AuthDto.RegisterRequest request){
         if (userRepository.existsByEmail(request.getEmail())){
@@ -28,7 +29,7 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(RoleEnum.STUDENT);
+        user.setRole(RoleEnum.USER);
 
         userRepository.save(user);
 
@@ -37,13 +38,25 @@ public class AuthService {
     }
 
     public AuthDto.AuthResponse login(AuthDto.LoginRequest request){
-        User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(()-> new RuntimeException("Пользователь не найден"));
-        
+        String email = request.getEmail();
+
+        if (loginAttemptService.isBlocked(email)) {
+            long seconds = loginAttemptService.secondsUntilUnlock(email);
+            throw new RuntimeException("Слишком много неудачных попыток. Попробуйте через " + seconds + " секунд");
+        }
+
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> {
+                loginAttemptService.loginFailed(email);
+                return new RuntimeException("Пользователь не найден");
+            });
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())){
+            loginAttemptService.loginFailed(email);
             throw new RuntimeException("Неверный пароль");
         }
 
+        loginAttemptService.loginSucceeded(email);
         String token = jwtService.generateToken(user.getEmail());
         return new AuthDto.AuthResponse(token);
     }

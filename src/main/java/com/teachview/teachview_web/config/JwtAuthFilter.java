@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.teachview.teachview_web.Enum.RoleEnum;
 import com.teachview.teachview_web.repository.UserRepository;
 import com.teachview.teachview_web.service.JwtService;
 
@@ -47,8 +48,14 @@ public class JwtAuthFilter extends OncePerRequestFilter{
             String email = jwtService.extractEmail(token);
             User user = userRepository.findByEmail(email).orElse(null);
 
-            if (user != null){
-                UsernamePasswordAuthenticationToken auth =  new UsernamePasswordAuthenticationToken(user, null, List.of());
+            if (user != null) {
+                if (user.getRole() == RoleEnum.BANNED) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":\"Ваш аккаунт заблокирован\"}");
+                    return;
+                }
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user, null, List.of());
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
 
