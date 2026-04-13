@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoCard from '../components/VideoCard';
 import { fetchMe, fetchUserById, updateMe, uploadAvatar, changePassword, API_BASE } from '../services/authApi';
-import { fetchMyVideos, fetchUserVideos, fetchFavorites, deleteVideo } from '../services/videoApi';
+import { fetchMyVideos, fetchUserVideos, fetchFavorites, deleteVideo, getVideoStatus } from '../services/videoApi';
 import { VideoUpload } from '../components/VideoUpload';
 import VideoEditModal from '../components/VideoEditModal';
 import SubscriptionTierManager from '../components/SubscriptionTierManager';
@@ -150,12 +150,44 @@ export default function ProfilePage() {
     }
   };
 
+  const pollingRefs = useRef({});
+
+  const startPolling = useCallback((videoId) => {
+    if (pollingRefs.current[videoId]) return;
+    pollingRefs.current[videoId] = setInterval(async () => {
+      try {
+        const { status: videoStatus } = await getVideoStatus(videoId);
+        setVideos(prev => prev.map(v => v.id === videoId ? { ...v, status: videoStatus } : v));
+        if (videoStatus === 'READY' || videoStatus === 'FAILED') {
+          clearInterval(pollingRefs.current[videoId]);
+          delete pollingRefs.current[videoId];
+        }
+      } catch { /* сеть — продолжаем */ }
+    }, 3000);
+  }, []);
+
+  // Очистка всех polling при unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pollingRefs.current).forEach(clearInterval);
+    };
+  }, []);
+
+  // Запуск polling для видео, которые уже PROCESSING при загрузке страницы
+  useEffect(() => {
+    videos.forEach(v => {
+      if (v.status === 'PROCESSING') {
+        startPolling(v.id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const handleVideoUploaded = (videoData) => {
     setVideos(prev => [videoData, ...prev]);
-  };
-
-  const handleVideoStatusUpdate = (videoId, newStatus) => {
-    setVideos(prev => prev.map(v => v.id === videoId ? { ...v, status: newStatus } : v));
+    if (videoData.status === 'PROCESSING') {
+      startPolling(videoData.id);
+    }
   };
 
   const avatarLetter = user?.username?.[0]?.toUpperCase() || '?';
@@ -430,12 +462,8 @@ export default function ProfilePage() {
             overflowY: 'auto',
           }}>
             <VideoUpload
-              onUploadSuccess={() => {
-                setUploadModalOpen(false);
-              }}
               onClose={() => setUploadModalOpen(false)}
               onVideoUploaded={handleVideoUploaded}
-              onVideoStatusUpdate={handleVideoStatusUpdate}
             />
           </div>
         </div>

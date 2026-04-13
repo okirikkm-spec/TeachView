@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { uploadVideo, getVideoStatus } from '../services/videoApi';
+import { useState, useEffect } from 'react';
+import { uploadVideo } from '../services/videoApi';
 import { fetchTiers } from '../services/subscriptionApi';
 import { fetchMe } from '../services/authApi';
 
-export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideoStatusUpdate }) {
+export function VideoUpload({ onClose, onVideoUploaded }) {
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
@@ -18,13 +18,9 @@ export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideo
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [phase, setPhase] = useState(null); // 'uploading' | 'processing' | null
-  const pollingRef = useRef(null);
 
   useEffect(() => {
     fetchMe().then(me => fetchTiers(me.id)).then(setMyTiers).catch(() => {});
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
   }, []);
 
   const handleVideoChange = (e) => {
@@ -63,34 +59,6 @@ export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideo
     }
   };
 
-  const pollProcessingStatus = (videoId) => {
-    pollingRef.current = setInterval(async () => {
-      try {
-        const { status: videoStatus } = await getVideoStatus(videoId);
-
-        // Обновляем статус видео в списке
-        if (onVideoStatusUpdate) {
-          onVideoStatusUpdate(videoId, videoStatus);
-        }
-
-        if (videoStatus === 'READY') {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setPhase(null);
-          setStatus({ type: 'success', text: 'Видео успешно обработано и готово!' });
-          onUploadSuccess();
-        } else if (videoStatus === 'FAILED') {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setPhase(null);
-          setStatus({ type: 'error', text: 'Ошибка при обработке видео на сервере.' });
-        }
-      } catch {
-        // ошибка сети — продолжаем polling
-      }
-    }, 3000);
-  };
-
   const handleUpload = async () => {
     if (!videoFile) return;
     if (tagInput.trim()) addTag(tagInput);
@@ -107,11 +75,6 @@ export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideo
         (percent) => setUploadProgress(percent),
         description
       );
-
-      // Файл загружен — переходим к фазе обработки
-      setUploadProgress(100);
-      setPhase('processing');
-      setStatus({ type: 'info', text: 'Файл загружен! Обработка видео на сервере...' });
 
       // Вызываем callback с данными видео — оно появится в списке сразу
       if (onVideoUploaded) {
@@ -131,9 +94,9 @@ export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideo
       setTagInput('');
       setRequiredTierId('');
       setUploading(false);
-
-      // Запускаем polling статуса
-      pollProcessingStatus(result.id);
+      setUploadProgress(0);
+      setPhase(null);
+      setStatus({ type: 'success', text: 'Видео загружено! Обработка идёт в фоне.' });
 
     } catch (err) {
       setStatus({ type: 'error', text: err.message || 'Ошибка при загрузке видео.' });
