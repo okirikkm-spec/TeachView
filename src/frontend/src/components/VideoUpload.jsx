@@ -1,25 +1,31 @@
-import { useState, useEffect } from 'react';
-import { uploadVideo } from '../services/videoApi';
+import { useState, useEffect, useRef } from 'react';
+import { uploadVideo, getVideoStatus } from '../services/videoApi';
 import { fetchTiers } from '../services/subscriptionApi';
 import { fetchMe } from '../services/authApi';
 
-export function VideoUpload({ onUploadSuccess }) {
+export function VideoUpload({ onUploadSuccess, onClose, onVideoUploaded, onVideoStatusUpdate }) {
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
+  const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState(null);
-  const [open, setOpen] = useState(false);
   const [requiredTierId, setRequiredTierId] = useState('');
   const [myTiers, setMyTiers] = useState([]);
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [phase, setPhase] = useState(null); // 'uploading' | 'processing' | null
+  const pollingRef = useRef(null);
+
   useEffect(() => {
     fetchMe().then(me => fetchTiers(me.id)).then(setMyTiers).catch(() => {});
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
-
 
   const handleVideoChange = (e) => {
     const file = e.target.files[0];
@@ -57,52 +63,109 @@ export function VideoUpload({ onUploadSuccess }) {
     }
   };
 
+  const pollProcessingStatus = (videoId) => {
+    pollingRef.current = setInterval(async () => {
+      try {
+        const { status: videoStatus } = await getVideoStatus(videoId);
+
+        // Обновляем статус видео в списке
+        if (onVideoStatusUpdate) {
+          onVideoStatusUpdate(videoId, videoStatus);
+        }
+
+        if (videoStatus === 'READY') {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPhase(null);
+          setStatus({ type: 'success', text: 'Видео успешно обработано и готово!' });
+          onUploadSuccess();
+        } else if (videoStatus === 'FAILED') {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPhase(null);
+          setStatus({ type: 'error', text: 'Ошибка при обработке видео на сервере.' });
+        }
+      } catch {
+        // ошибка сети — продолжаем polling
+      }
+    }, 3000);
+  };
+
   const handleUpload = async () => {
     if (!videoFile) return;
     if (tagInput.trim()) addTag(tagInput);
+
     setUploading(true);
-    setStatus({ type: 'info', text: 'Обработка видео (FFmpeg)...' });
+    setUploadProgress(0);
+    setPhase('uploading');
+    setStatus(null);
+
     try {
-      await uploadVideo(videoFile, title, thumbnailFile, tags, requiredTierId || null);
-      setStatus({ type: 'success', text: 'Видео успешно загружено.' });
+      const result = await uploadVideo(
+        videoFile, title, thumbnailFile, tags,
+        requiredTierId || null,
+        (percent) => setUploadProgress(percent),
+        description
+      );
+
+      // Файл загружен — переходим к фазе обработки
+      setUploadProgress(100);
+      setPhase('processing');
+      setStatus({ type: 'info', text: 'Файл загружен! Обработка видео на сервере...' });
+
+      // Вызываем callback с данными видео — оно появится в списке сразу
+      if (onVideoUploaded) {
+        onVideoUploaded({
+          ...result,
+          status: 'PROCESSING',
+        });
+      }
+
+      // Очищаем форму — можно загружать следующее
       setVideoFile(null);
       setThumbnailFile(null);
       setThumbnailPreview(null);
       setTitle('');
+      setDescription('');
       setTags([]);
       setTagInput('');
       setRequiredTierId('');
-      onUploadSuccess();
+      setUploading(false);
+
+      // Запускаем polling статуса
+      pollProcessingStatus(result.id);
+
     } catch (err) {
       setStatus({ type: 'error', text: err.message || 'Ошибка при загрузке видео.' });
-    } finally {
+      setPhase(null);
+      setUploadProgress(0);
       setUploading(false);
     }
   };
 
   return (
-    <section className="card">
-      <h2
-        className="card-title"
-        onClick={() => setOpen(v => !v)}
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
-        Загрузить видео
-        <svg
-          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ marginLeft: 'auto', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </h2>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h2 className="card-title" style={{ margin: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Загрузить видео
+        </h2>
+        {onClose && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onClose}
+            style={{ padding: '4px 8px', fontSize: '18px', lineHeight: 1 }}
+            title="Закрыть"
+          >✕</button>
+        )}
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s ease' }}>
-        <div style={{ overflow: 'hidden' }}>
+      <div>
+        <div>
           <div className="input-group">
             <label className="input-label">Название</label>
             <input
@@ -112,6 +175,19 @@ export function VideoUpload({ onUploadSuccess }) {
               value={title}
               onChange={e => setTitle(e.target.value)}
               disabled={uploading}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Описание</label>
+            <textarea
+              className="input"
+              placeholder="Описание видео (необязательно)..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              disabled={uploading}
+              rows={3}
+              style={{ resize: 'vertical', minHeight: 72 }}
             />
           </div>
 
@@ -193,10 +269,8 @@ export function VideoUpload({ onUploadSuccess }) {
                 />
               )}
             </div>
-            
+
           </div>
-          
-          
 
           <button
             className="btn btn-primary"
@@ -209,7 +283,7 @@ export function VideoUpload({ onUploadSuccess }) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
-                Загрузка...
+                Загрузка... {uploadProgress}%
               </>
             ) : (
               <>
@@ -223,13 +297,60 @@ export function VideoUpload({ onUploadSuccess }) {
             )}
           </button>
 
+          {/* Прогресс-бар */}
+          {phase && (
+            <div className="upload-progress-wrap">
+              <div className="upload-progress-header">
+                <span>{phase === 'uploading' ? 'Загрузка файла' : 'Обработка видео (FFmpeg)'}</span>
+                <span>{phase === 'uploading' ? `${uploadProgress}%` : ''}</span>
+              </div>
+              <div className="upload-progress-track">
+                <div
+                  className={`upload-progress-bar ${phase === 'processing' ? 'upload-progress-bar--pulse' : ''}`}
+                  style={{ width: phase === 'uploading' ? `${uploadProgress}%` : '100%' }}
+                />
+              </div>
+            </div>
+          )}
+
           {status && (
             <div className={`upload-status ${status.type}`}>{status.text}</div>
           )}
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </section>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse-bar {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        .upload-progress-wrap {
+          margin-top: 12px;
+        }
+        .upload-progress-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          margin-bottom: 6px;
+          color: var(--text-muted);
+        }
+        .upload-progress-track {
+          height: 8px;
+          border-radius: 4px;
+          background: var(--surface-3);
+          overflow: hidden;
+        }
+        .upload-progress-bar {
+          height: 100%;
+          border-radius: 4px;
+          background: var(--accent);
+          transition: width 0.3s ease;
+        }
+        .upload-progress-bar--pulse {
+          animation: pulse-bar 1.5s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
   );
 }

@@ -3,12 +3,14 @@ import { useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoCard from '../components/VideoCard';
 import { fetchMe, fetchUserById, updateMe, uploadAvatar, changePassword, API_BASE } from '../services/authApi';
-import { fetchMyVideos, fetchUserVideos, fetchFavorites } from '../services/videoApi';
+import { fetchMyVideos, fetchUserVideos, fetchFavorites, deleteVideo } from '../services/videoApi';
 import { VideoUpload } from '../components/VideoUpload';
 import VideoEditModal from '../components/VideoEditModal';
 import SubscriptionTierManager from '../components/SubscriptionTierManager';
 import SubscriptionPanel from '../components/SubscriptionPanel';
+import PlaylistManager from '../components/PlaylistManager';
 import { fetchSubscriberCount } from '../services/subscriptionApi';
+import { fetchMyPlaylists, fetchAuthorPlaylists } from '../services/playlistApi';
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -38,6 +40,8 @@ export default function ProfilePage() {
   const [editVideoId, setEditVideoId] = useState(null);
   const [favoriteVideos, setFavoriteVideos] = useState([]);
   const [subscriberCount, setSubscriberCount] = useState(0);
+  const [playlists, setPlaylists] = useState([]);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const isOwnProfile = !id || (currentUser && String(currentUser.id) === String(id));
 
@@ -48,7 +52,6 @@ export default function ProfilePage() {
     setSearchQuery('');
 
     if (!id) {
-      // Свой профиль (маршрут /profile)
       Promise.all([fetchMe(), fetchMyVideos(), fetchFavorites()])
         .then(([userData, videosData, favData]) => {
           setCurrentUser(userData);
@@ -58,6 +61,7 @@ export default function ProfilePage() {
           setFormUsername(userData.username || '');
           setFormEmail(userData.email || '');
           fetchSubscriberCount(userData.id).then(setSubscriberCount).catch(() => {});
+          fetchMyPlaylists().then(setPlaylists).catch(() => {});
           setLoading(false);
         })
         .catch(err => {
@@ -65,7 +69,6 @@ export default function ProfilePage() {
           setLoading(false);
         });
     } else {
-      // Чужой или свой профиль по ID
       Promise.all([fetchMe(), fetchUserById(id), fetchUserVideos(id)])
         .then(([meData, userData, videosData]) => {
           setCurrentUser(meData);
@@ -77,6 +80,8 @@ export default function ProfilePage() {
             fetchFavorites().then(setFavoriteVideos).catch(() => {});
           }
           fetchSubscriberCount(userData.id).then(setSubscriberCount).catch(() => {});
+          const isOwn = String(meData.id) === String(id);
+          (isOwn ? fetchMyPlaylists() : fetchAuthorPlaylists(id)).then(setPlaylists).catch(() => {});
           setLoading(false);
         })
         .catch(err => {
@@ -133,6 +138,24 @@ export default function ProfilePage() {
     } catch (err) {
       setPasswordStatus(err.message || 'error');
     }
+  };
+
+  const handleDeleteVideo = async (videoId) => {
+    if (!window.confirm('Удалить видео? Это действие необратимо.')) return;
+    try {
+      await deleteVideo(videoId);
+      setVideos(prev => prev.filter(v => v.id !== videoId));
+    } catch (err) {
+      alert(err.message || 'Ошибка при удалении видео');
+    }
+  };
+
+  const handleVideoUploaded = (videoData) => {
+    setVideos(prev => [videoData, ...prev]);
+  };
+
+  const handleVideoStatusUpdate = (videoId, newStatus) => {
+    setVideos(prev => prev.map(v => v.id === videoId ? { ...v, status: newStatus } : v));
   };
 
   const avatarLetter = user?.username?.[0]?.toUpperCase() || '?';
@@ -298,18 +321,12 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {isOwnProfile && (
+        {isOwnProfile && currentUser && (
           <SubscriptionTierManager userId={currentUser.id} />
         )}
 
         {!isOwnProfile && currentUser && user && (
           <SubscriptionPanel authorId={user.id} currentUserId={currentUser.id} />
-        )}
-
-        {isOwnProfile && (
-          <VideoUpload onUploadSuccess={() =>
-            fetchMyVideos().then(setVideos)
-          } />
         )}
 
         <div className="profile-videos">
@@ -322,20 +339,58 @@ export default function ProfilePage() {
               <button className={`btn btn-sm ${activeTab === 'favorites' ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => handleTabChange('favorites')}>Избранное</button>
             )}
+            <button className={`btn btn-sm ${activeTab === 'playlists' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => handleTabChange('playlists')}>Плейлисты</button>
           </div>
 
-          {displayedVideos.length === 0 ? (
-            <p className="main-page-state">
-              {searchQuery ? `Ничего не найдено по запросу «${searchQuery}»`
-                : isOwnProfile
-                  ? (activeTab === 'my' ? 'Вы ещё не загружали видео' : 'Нет избранных видео')
-                  : 'У пользователя пока нет видео'}
-            </p>
+          {activeTab === 'playlists' ? (
+            <PlaylistManager
+              playlists={playlists}
+              isOwnProfile={isOwnProfile}
+              onPlaylistsChange={setPlaylists}
+              onChanged={() => fetchMyPlaylists().then(setPlaylists)}
+            />
           ) : (
             <div className="profile-video-grid">
-              {displayedVideos.map(v => (
-                <VideoCard key={v.id} video={v} showEditButton={isOwnProfile && activeTab === 'my'} onEdit={(vid) => setEditVideoId(vid)} />
-              ))}
+              {isOwnProfile && activeTab === 'my' && (
+                <div
+                  className="video-card"
+                  onClick={() => setUploadModalOpen(true)}
+                  style={{
+                    border: '2px dashed var(--border)',
+                    background: 'var(--surface)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    color: 'var(--text-muted)',
+                    minHeight: '160px',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span style={{ fontSize: '0.85em', fontWeight: 500 }}>Загрузить видео</span>
+                </div>
+              )}
+              {displayedVideos.length === 0 && (searchQuery || !(isOwnProfile && activeTab === 'my')) ? (
+                <p className="main-page-state" style={{ gridColumn: '1 / -1' }}>
+                  {searchQuery ? `Ничего не найдено по запросу «${searchQuery}»`
+                    : isOwnProfile
+                      ? 'Нет избранных видео'
+                      : 'У пользователя пока нет видео'}
+                </p>
+              ) : (
+                displayedVideos.map(v => (
+                  <VideoCard key={v.id} video={v} showEditButton={isOwnProfile && activeTab === 'my'} onEdit={(vid) => setEditVideoId(vid)} onDelete={handleDeleteVideo} />
+                ))
+              )}
             </div>
           )}
         </div>
@@ -352,6 +407,38 @@ export default function ProfilePage() {
             (isOwnProfile && !id ? fetchMyVideos() : fetchUserVideos(id)).then(setVideos);
           }}
         />
+      )}
+
+      {uploadModalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setUploadModalOpen(false); }}
+        >
+          <div style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px',
+            width: '100%',
+            maxWidth: '560px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}>
+            <VideoUpload
+              onUploadSuccess={() => {
+                setUploadModalOpen(false);
+              }}
+              onClose={() => setUploadModalOpen(false)}
+              onVideoUploaded={handleVideoUploaded}
+              onVideoStatusUpdate={handleVideoStatusUpdate}
+            />
+          </div>
+        </div>
       )}
     </>
   );
