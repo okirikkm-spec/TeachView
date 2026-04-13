@@ -21,8 +21,6 @@ public class SubscriptionController {
         this.subscriptionService = subscriptionService;
     }
 
-    // ─── Tiers (уровни подписки автора) ───
-
     @GetMapping("/tiers/{authorId}")
     public List<SubscriptionTierDto> getTiers(@PathVariable Long authorId) {
         return subscriptionService.getTiersByAuthor(authorId);
@@ -61,10 +59,8 @@ public class SubscriptionController {
             @AuthenticationPrincipal User currentUser
     ) {
         subscriptionService.deleteTier(tierId, currentUser);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
-
-    // ─── Subscriptions (подписки пользователя) ───
 
     @PostMapping("/subscribe/{tierId}")
     public ResponseEntity<SubscriptionDto> subscribe(
@@ -81,7 +77,7 @@ public class SubscriptionController {
             @AuthenticationPrincipal User currentUser
     ) {
         subscriptionService.unsubscribe(currentUser, authorId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/my")

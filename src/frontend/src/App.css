@@ -482,11 +482,19 @@ body {
   letter-spacing: 0.3px;
 }
 
-/* Кнопка редактирования — правый верхний угол */
-.video-card-edit {
+/* Кнопки действий — правый верхний угол */
+.video-card-actions {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.video-card:hover .video-card-actions { opacity: 1; }
+
+.video-card-edit, .video-card-delete {
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
@@ -497,12 +505,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Скрыта, показывается при hover на карточку */
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
-.video-card:hover .video-card-edit { opacity: 1; }
-.video-card-edit:hover { background: var(--accent); }
+.video-card-edit:hover  { background: var(--accent); }
+.video-card-delete:hover { background: var(--error); }
 
 /* Текстовый блок */
 .video-card-info {
@@ -601,6 +607,49 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ─── VideoCard — processing state ──────────────────────────── */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes processing-spin {
+  to { --border-angle: 360deg; }
+}
+
+.video-card--processing {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(
+      from var(--border-angle),
+      transparent 30%,
+      var(--accent) 50%,
+      var(--accent-hover) 60%,
+      var(--accent) 70%,
+      transparent 90%
+    ) border-box;
+  animation: processing-spin 2s linear infinite;
+}
+
+.video-card-processing-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(124, 111, 247, 0.4);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* ─── ProfilePage ────────────────────────────────────────────── */
@@ -1288,6 +1337,7 @@ body {
   flex-shrink: 0;
   background: var(--surface-2);
   overflow: hidden;
+  position: relative;
 }
 .related-card-thumb img {
   width: 100%;

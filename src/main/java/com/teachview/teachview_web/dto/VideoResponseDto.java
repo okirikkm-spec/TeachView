@@ -27,6 +27,7 @@ public class VideoResponseDto {
     private String requiredTierName;
     private Integer requiredTierPrice;
     private boolean hasAccess = true;
+    private String status;
 
     public static VideoResponseDto from(Video video) {
         VideoResponseDto dto = new VideoResponseDto();
@@ -51,6 +52,7 @@ public class VideoResponseDto {
             dto.setRequiredTierName(video.getRequiredTier().getName());
             dto.setRequiredTierPrice(video.getRequiredTier().getPrice());
         }
+        dto.setStatus(video.getStatus().name());
         return dto;
     }
 }

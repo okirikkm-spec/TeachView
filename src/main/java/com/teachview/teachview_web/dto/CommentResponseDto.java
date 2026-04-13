@@ -17,11 +17,11 @@ public class CommentResponseDto {
     private Boolean authorLiked;
     private Long likes;
     private Long dislikes;
-    private String myReaction; // "like", "dislike", or null
+    private String myReaction;
     private String createdAt;
 
     public static CommentResponseDto from(Comment comment, Long likes, Long dislikes,
-                                           String myReaction, Long videoAuthorId) {
+            String myReaction, Long videoAuthorId) {
         CommentResponseDto dto = new CommentResponseDto();
         dto.setId(comment.getId());
         dto.setText(comment.getText());

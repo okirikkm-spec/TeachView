@@ -16,6 +16,6 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 
     boolean existsByVideoIdAndUserId(Long videoId, Long userId);
 
-    @Query("SELECT f FROM Favorite f JOIN FETCH f.video v JOIN FETCH v.uploadedBy WHERE f.user.id = :userId")
+    @Query("SELECT f FROM Favorite f JOIN FETCH f.video v JOIN FETCH v.uploadedBy WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
     List<Favorite> findByUserIdWithVideo(@Param("userId") Long userId);
 }

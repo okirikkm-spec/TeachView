@@ -9,6 +9,7 @@ import StarRating from '../components/StarRating';
 import CommentSection from '../components/CommentSection';
 import RelatedVideos from '../components/RelatedVideos';
 import VideoEditModal from '../components/VideoEditModal';
+import AddToPlaylist from '../components/AddToPlaylist';
 
 // Мемоизируем плеер, чтобы смена состояний страницы (описание, модалка)
 // не вызывала его пересоздание и мигание
@@ -137,6 +138,9 @@ export default function VideoPlayerPage() {
                     >
                       {isFavorite ? '★ В избранном' : '☆ В избранное'}
                     </button>
+                  )}
+                  {currentUser && (
+                    <AddToPlaylist videoId={video.id} />
                   )}
                   {isOwner && (
                     <button

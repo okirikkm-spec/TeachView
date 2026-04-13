@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import MainPage from './pages/MainPage';
 import ProfilePage from './pages/ProfilePage';
 import VideoPlayerPage from './pages/VideoPlayerPage';
+import PlaylistPlayerPage from './pages/PlaylistPlayerPage';
 import './App.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
             <Route path="/profile"       element={<ProfilePage />} />
             <Route path="/profile/:id"   element={<ProfilePage />} />
             <Route path="/video/:id" element={<VideoPlayerPage />} />
+            <Route path="/playlist/:id" element={<PlaylistPlayerPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

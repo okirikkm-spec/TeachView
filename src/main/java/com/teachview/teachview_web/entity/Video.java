@@ -2,6 +2,10 @@ package com.teachview.teachview_web.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,15 +20,20 @@ public class Video {
     private Long id;
 
     private String title;
-    private String fileName;
     private String filePath;
-    private String contentType;
-    
     private String thumbnailPath;
     @Column(columnDefinition = "TEXT")
     private String description;
     private Long duration;
     private Long viewCount = 0L;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 
     @ElementCollection
     @CollectionTable(
@@ -32,6 +41,7 @@ public class Video {
         joinColumns = @JoinColumn(name = "video_id")
     )
     @Column(name = "tag")
+    @BatchSize(size = 50)
     private List<String> tags = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -41,4 +51,8 @@ public class Video {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "required_tier_id")
     private SubscriptionTier requiredTier;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private VideoStatus status = VideoStatus.PROCESSING;
 }

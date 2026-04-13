@@ -56,7 +56,7 @@ public class CommentController {
         @AuthenticationPrincipal User currentUser
     ) {
         commentService.deleteComment(commentId, currentUser);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{commentId}/like")

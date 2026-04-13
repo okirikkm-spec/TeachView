@@ -40,7 +40,6 @@ public class CommentService {
                 .stream()
                 .filter(c -> {
                     if (!c.getHidden()) return true;
-                    // Скрытый комментарий видит только автор видео и автор комментария
                     return currentUserId != null &&
                             (currentUserId.equals(videoAuthorId) || currentUserId.equals(c.getUser().getId()));
                 })
@@ -83,7 +82,6 @@ public class CommentService {
         Comment comment = commentRepository.findByIdWithRelations(commentId)
                 .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
         Long videoAuthorId = comment.getVideo().getUploadedBy().getId();
-        // Удалять может автор комментария или автор видео
         if (!comment.getUser().getId().equals(user.getId()) && !videoAuthorId.equals(user.getId())) {
             throw new RuntimeException("Нет прав на удаление");
         }
@@ -99,10 +97,8 @@ public class CommentService {
         if (existing.isPresent()) {
             CommentLike like = existing.get();
             if (like.getLiked().equals(isLike)) {
-                // Повторный клик — убираем реакцию
                 commentLikeRepository.delete(like);
             } else {
-                // Меняем тип реакции
                 like.setLiked(isLike);
                 commentLikeRepository.save(like);
             }

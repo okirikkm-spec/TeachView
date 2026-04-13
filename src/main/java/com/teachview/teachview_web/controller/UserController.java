@@ -17,7 +17,7 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         return ResponseEntity.ok(UserResponseDto.from(user));
     }
 }

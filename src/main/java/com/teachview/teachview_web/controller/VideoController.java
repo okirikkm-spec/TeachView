@@ -24,7 +24,7 @@ public class VideoController {
     private final SubscriptionService subscriptionService;
 
     public VideoController(VideoService videoService, FavoriteService favoriteService,
-                           RatingService ratingService, SubscriptionService subscriptionService) {
+            RatingService ratingService, SubscriptionService subscriptionService) {
         this.videoService = videoService;
         this.favoriteService = favoriteService;
         this.ratingService = ratingService;
@@ -48,67 +48,90 @@ public class VideoController {
 
     @GetMapping("/{id}")
     public VideoResponseDto getVideoById(
-        @PathVariable Long id,
-        @AuthenticationPrincipal User currentUser
-    ) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+
         VideoResponseDto dto = videoService.getVideoById(id);
+
         if (currentUser != null) {
             dto.setFavorite(favoriteService.isFavorite(id, currentUser.getId()));
         }
+
         boolean hasAccess = videoService.checkAccess(id, currentUser, subscriptionService);
         dto.setHasAccess(hasAccess);
+        
         return dto;
     }
 
     @PostMapping("/upload")
     public ResponseEntity<VideoResponseDto> uploadVideo(
-        @RequestParam("file")                                    MultipartFile file,
-        @RequestParam(value = "title",       required = false)   String title,
-        @RequestParam(value = "description", required = false)   String description,
-        @RequestParam(value = "thumbnail",   required = false)   MultipartFile thumbnail,
-        @RequestParam(value = "tags",        required = false)   List<String> tags,
-        @RequestParam(value = "requiredTierId", required = false) Long requiredTierId,
-        @AuthenticationPrincipal User currentUser
-    ) {
-        VideoResponseDto result = videoService.uploadAndProcess(file, title, description, thumbnail, currentUser, tags);
+            @RequestParam("file")                                    MultipartFile file,
+            @RequestParam(value = "description", required = false)   String description,
+            @RequestParam(value = "thumbnail",   required = false)   MultipartFile thumbnail,
+            @RequestParam(value = "tags",        required = false)   List<String> tags,
+            @RequestParam(value = "requiredTierId", required = false) Long requiredTierId,
+            @RequestParam(value = "title",       required = false)   String title,
+            @AuthenticationPrincipal User currentUser) {
+
+        VideoResponseDto result = videoService.upload(file, title, description, thumbnail, currentUser, tags);
+
         if (requiredTierId != null) {
             videoService.setRequiredTier(result.getId(), requiredTierId, currentUser);
             result = videoService.getVideoById(result.getId());
         }
+
         return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<VideoResponseDto> updateVideo(
-        @PathVariable Long id,
-        @RequestParam(value = "title", required = false) String title,
-        @RequestParam(value = "description", required = false) String description,
-        @RequestParam(value = "tags", required = false) List<String> tags,
-        @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
-        @RequestParam(value = "requiredTierId", required = false) String requiredTierId,
-        @AuthenticationPrincipal User currentUser
-    ) {
+            @PathVariable Long id,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "tags", required = false) List<String> tags,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "requiredTierId", required = false) String requiredTierId,
+            @AuthenticationPrincipal User currentUser) {
+
         VideoResponseDto result = videoService.updateVideo(id, title, description, tags, thumbnail, currentUser);
+
         if (requiredTierId != null) {
             Long tierId = requiredTierId.isEmpty() || "null".equals(requiredTierId) ? null : Long.parseLong(requiredTierId);
             videoService.setRequiredTier(id, tierId, currentUser);
             result = videoService.getVideoById(id);
         }
+
         return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteVideo(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        videoService.deleteVideo(id, currentUser);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/related")
     public List<VideoResponseDto> getRelatedVideos(
-        @PathVariable Long id,
-        @RequestParam(value = "limit", defaultValue = "8") int limit
-    ) {
+            @PathVariable Long id,
+            @RequestParam(value = "limit", defaultValue = "8") int limit) {
+
         List<VideoResponseDto> related = videoService.getRelatedVideos(id, limit);
+
         related.forEach(dto -> {
             Map<String, Object> ratingInfo = ratingService.getRatingInfo(dto.getId(), null);
             dto.setAverageRating((Double) ratingInfo.get("average"));
             dto.setRatingCount((Integer) ratingInfo.get("count"));
         });
+
         return related;
+    }
+
+    @GetMapping("/{id}/status")
+    public ResponseEntity<Map<String, String>> getVideoStatus(@PathVariable Long id) {
+        VideoResponseDto video = videoService.getVideoById(id);
+        return ResponseEntity.ok(Map.of("status", video.getStatus()));
     }
 
     @PostMapping("/{id}/view")

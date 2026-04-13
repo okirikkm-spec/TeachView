@@ -26,8 +26,6 @@ public class SubscriptionService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
-    // ─── Tier management (author) ───
-
     public List<SubscriptionTierDto> getTiersByAuthor(Long authorId) {
         return tierRepository.findByAuthorIdOrderBySortOrderAscPriceAsc(authorId)
                 .stream()
@@ -72,8 +70,6 @@ public class SubscriptionService {
         tierRepository.delete(tier);
     }
 
-    // ─── Subscription management ───
-
     @Transactional
     public SubscriptionDto subscribe(User subscriber, Long tierId) {
         SubscriptionTier tier = tierRepository.findById(tierId)
@@ -89,7 +85,6 @@ public class SubscriptionService {
                 .orElse(null);
 
         if (sub != null) {
-            // Обновляем уровень подписки
             sub.setTier(tier);
             sub.setActive(true);
             sub.setStartedAt(LocalDateTime.now());
@@ -135,11 +130,6 @@ public class SubscriptionService {
         return subscriptionRepository.countByAuthorIdAndActiveTrue(authorId);
     }
 
-    /**
-     * Проверяет, имеет ли пользователь доступ к видео.
-     * Видео доступно если: нет requiredTier, или пользователь — автор,
-     * или у пользователя активная подписка с ценой >= требуемой.
-     */
     public boolean hasAccessToVideo(Video video, User user) {
         if (video.getRequiredTier() == null) return true;
         if (user == null) return false;
@@ -152,7 +142,6 @@ public class SubscriptionService {
         if (sub == null || !sub.getActive()) return false;
         if (sub.getExpiresAt() != null && sub.getExpiresAt().isBefore(LocalDateTime.now())) return false;
 
-        // Доступ есть если цена подписки >= цена требуемого уровня
         return sub.getTier().getPrice() >= video.getRequiredTier().getPrice();
     }
 }

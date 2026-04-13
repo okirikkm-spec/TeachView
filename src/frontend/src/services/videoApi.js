@@ -13,29 +13,58 @@ export async function fetchAllVideos() {
   return res.json();
 }
 
-export async function uploadVideo(file, title = '', thumbnailFile = null, tags = [], requiredTierId = null) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("title", title || file.name);
-  if (thumbnailFile) {
-    formData.append("thumbnail", thumbnailFile);
-  }
-  tags.forEach(tag => formData.append("tags", tag));
-  if (requiredTierId) {
-    formData.append("requiredTierId", requiredTierId);
-  }
+export function uploadVideo(file, title = '', thumbnailFile = null, tags = [], requiredTierId = null, onProgress = null, description = '') {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", title || file.name);
+    if (description) formData.append("description", description);
+    if (thumbnailFile) formData.append("thumbnail", thumbnailFile);
+    tags.forEach(tag => formData.append("tags", tag));
+    if (requiredTierId) formData.append("requiredTierId", requiredTierId);
 
-  const res = await fetch(`${API_BASE}/api/videos/upload`, {
-    method: "POST",
-    body: formData,
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/api/videos/upload`);
+    xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`);
+    xhr.setRequestHeader("ngrok-skip-browser-warning", "true");
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        try {
+          const body = JSON.parse(xhr.responseText);
+          reject(new Error(body.error || "Ошибка при загрузке видео"));
+        } catch {
+          reject(new Error("Ошибка при загрузке видео"));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Ошибка сети"));
+    xhr.send(formData);
+  });
+}
+
+export async function deleteVideo(id) {
+  const res = await fetch(`${API_BASE}/api/videos/${id}`, {
+    method: 'DELETE',
     headers: getDefaultHeaders(),
   });
+  if (!res.ok) throw new Error('Ошибка при удалении видео');
+}
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Ошибка при загрузке видео");
-  }
-
+export async function getVideoStatus(videoId) {
+  const res = await fetch(`${API_BASE}/api/videos/${videoId}/status`, {
+    headers: getDefaultHeaders(),
+  });
+  if (!res.ok) throw new Error("Ошибка проверки статуса");
   return res.json();
 }
 
@@ -92,10 +121,7 @@ export async function updateVideo(id, { title, description, tags, thumbnail, req
   const res = await fetch(`${API_BASE}/api/videos/${id}`, {
     method: "PUT",
     body: formData,
-    headers: {
-      "ngrok-skip-browser-warning": "true",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`,
-    },
+    headers: getDefaultHeaders(),
   });
   if (!res.ok) throw new Error("Ошибка при обновлении видео");
   return res.json();
