@@ -1,7 +1,9 @@
 package com.teachview.teachview_web.service;
 
 import io.minio.*;
-import io.minio.errors.MinioException;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,8 @@ import java.nio.file.Path;
 @Service
 public class MinioService {
 
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
+
     private final MinioClient minioClient;
 
     @Value("${minio.bucket}")
@@ -21,7 +25,22 @@ public class MinioService {
         this.minioClient = minioClient;
     }
 
-    private void uploadFile(Path filePath, String objectName) throws Exception {
+    @PostConstruct
+    public void createBucketIfNotExists() {
+        try {
+            boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+            if (!exists) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+                log.info("Bucket '{}' создан", bucket);
+            } else {
+                log.info("Bucket '{}' уже существует", bucket);
+            }
+        } catch (Exception e) {
+            log.warn("Не удалось создать bucket '{}': {}", bucket, e.getMessage());
+        }
+    }
+
+    public void uploadFile(Path filePath, String objectName) throws Exception {
         String contentType = Files.probeContentType(filePath);
 
         if (contentType == null) {

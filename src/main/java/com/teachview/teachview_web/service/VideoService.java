@@ -28,13 +28,16 @@ public class VideoService {
     private final VideoRepository videoRepository;
     private final SubscriptionTierRepository subscriptionTierRepository;
     private final VideoProcessingService videoProcessingService;
+    private final MinioService minioService;
 
     public VideoService(VideoRepository videoRepository,
                         SubscriptionTierRepository subscriptionTierRepository,
-                        VideoProcessingService videoProcessingService) {
+                        VideoProcessingService videoProcessingService,
+                        MinioService minioService) {
         this.videoRepository = videoRepository;
         this.subscriptionTierRepository = subscriptionTierRepository;
         this.videoProcessingService = videoProcessingService;
+        this.minioService = minioService;
     }
 
     public List<VideoResponseDto> getAllVideos() {
@@ -88,7 +91,7 @@ public class VideoService {
             throw new VideoProcessingException("Не удалось сохранить файл на диск", e);
         }
 
-        // Сохраняем превью сразу (пока MultipartFile ещё доступен)
+        // Сохраняем превью сразу и загружаем в MinIO
         String thumbnailPath = null;
         if (thumbnail != null && !thumbnail.isEmpty()) {
             String ext = getExtension(thumbnail.getOriginalFilename());
@@ -96,7 +99,9 @@ public class VideoService {
             try {
                 Files.copy(thumbnail.getInputStream(), thumbDest);
                 thumbnailPath = "uploads/videos/" + videoId + "/thumbnail." + ext;
-            } catch (IOException e) {
+                // Сразу загружаем в MinIO — не ждём FFmpeg
+                minioService.uploadFile(thumbDest, "videos/" + videoId + "/thumbnail." + ext);
+            } catch (Exception e) {
                 // не критично
             }
         }
@@ -216,14 +221,12 @@ public class VideoService {
 
         String filePath = video.getFilePath();
         if (filePath != null) {
-            Path videoDir = Paths.get(filePath).getParent();
-            if (videoDir != null && Files.exists(videoDir)) {
-                try {
-                    Files.walk(videoDir)
-                         .sorted(Comparator.reverseOrder())
-                         .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
-                } catch (IOException ignored) {}
-            }
+            // Удаляем из MinIO: filePath = "uploads/videos/{videoId}/master.m3u8"
+            // MinIO prefix = "videos/{videoId}/"
+            String minioPrefix = filePath.replace("uploads/", "").replace("master.m3u8", "");
+            try {
+                minioService.deleteFolder(minioPrefix);
+            } catch (Exception ignored) {}
         }
 
         videoRepository.delete(video);

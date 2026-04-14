@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.Comparator;
 
 @Service
 public class VideoProcessingService {
@@ -21,9 +22,11 @@ public class VideoProcessingService {
     private static final Logger log = LoggerFactory.getLogger(VideoProcessingService.class);
 
     private final VideoRepository videoRepository;
+    private final MinioService minioService;
 
-    public VideoProcessingService(VideoRepository videoRepository) {
+    public VideoProcessingService(VideoRepository videoRepository, MinioService minioService) {
         this.videoRepository = videoRepository;
+        this.minioService = minioService;
     }
 
     @Async("videoProcessingExecutor")
@@ -75,6 +78,24 @@ public class VideoProcessingService {
                 }
             }
 
+            // Загружаем HLS файлы и превью в MinIO
+            try {
+                Files.walk(workDir)
+                    .filter(Files::isRegularFile)
+                    .filter(p -> !p.getFileName().toString().startsWith("original_"))
+                    .forEach(p -> {
+                        String key = "videos/" + videoId + "/" + workDir.relativize(p).toString().replace("\\", "/");
+                        try {
+                            minioService.uploadFile(p, key);
+                        } catch (Exception e) {
+                            log.warn("Не удалось загрузить файл {} в MinIO: {}", p, e.getMessage());
+                        }
+                    });
+                log.info("Файлы видео {} загружены в MinIO", videoDbId);
+            } catch (Exception e) {
+                log.warn("Ошибка при загрузке файлов в MinIO для видео {}: {}", videoDbId, e.getMessage());
+            }
+
             Video video = videoRepository.findById(videoDbId).orElse(null);
             if (video != null) {
                 video.setDuration(duration);
@@ -91,8 +112,11 @@ public class VideoProcessingService {
             log.error("Ошибка обработки видео {}: {}", videoDbId, e.getMessage(), e);
             markFailed(videoDbId);
         } finally {
+            // Удаляем всю рабочую директорию — оригинал и HLS уже в MinIO
             try {
-                Files.deleteIfExists(tempFile);
+                Files.walk(workDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
             } catch (IOException ignored) {}
         }
     }

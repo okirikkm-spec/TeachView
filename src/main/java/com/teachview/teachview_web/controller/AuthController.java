@@ -1,6 +1,7 @@
 package com.teachview.teachview_web.controller;
 
 import com.teachview.teachview_web.repository.UserRepository;
+import com.teachview.teachview_web.service.MinioService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
@@ -24,10 +25,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    
+
     private final AuthService authService;
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final MinioService minioService;
 
 
     @PostMapping("/register")
@@ -55,15 +57,18 @@ public class AuthController {
         }
 
         String ext = contentType.substring(contentType.indexOf('/') + 1);
-        Path dir = Paths.get("uploads/avatars");
-        
-        try{
-            Files.createDirectories(dir);
-            Path dest = dir.resolve(currentUser.getId() + "." + ext);
-            Files.copy(file.getInputStream(), dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        String minioKey = "avatars/" + currentUser.getId() + "." + ext;
+        Path tempDir = Paths.get("uploads/avatars");
+
+        try {
+            Files.createDirectories(tempDir);
+            Path tempFile = tempDir.resolve(currentUser.getId() + "." + ext);
+            Files.copy(file.getInputStream(), tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            minioService.uploadFile(tempFile, minioKey);
+            Files.deleteIfExists(tempFile);
             currentUser.setAvatarPath("uploads/avatars/" + currentUser.getId() + "." + ext);
             userRepository.save(currentUser);
-        } catch (IOException e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INSUFFICIENT_STORAGE).body("Ошибка сохранения");
         }
         return ResponseEntity.ok(UserResponseDto.from(currentUser));

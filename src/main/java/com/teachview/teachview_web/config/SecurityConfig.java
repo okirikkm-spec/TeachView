@@ -36,6 +36,11 @@ public class SecurityConfig {
             .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/videos/*/view").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/tiers/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/count/**").permitAll()
+            // Статические файлы и SPA-маршруты React
+            .requestMatchers("/", "/index.html", "/static/**",
+                             "/*.js", "/*.css", "/*.ico", "/*.json", "/*.png", "/*.svg", "/*.txt",
+                             "/login", "/register", "/profile", "/profile/**",
+                             "/video/**", "/playlist/**").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
