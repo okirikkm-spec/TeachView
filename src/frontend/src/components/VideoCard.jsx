@@ -16,7 +16,7 @@ export default function VideoCard({ video, showEditButton = false, onEdit, onDel
   const title    = video.title || video.filename?.replace(/\.[^.]+$/, '') || 'Без названия';
   const views    = (video.viewCount ?? 0) + ' просмотров';
   const duration = formatDuration(video.duration);
-  const thumb    = getThumbnailUrl(video.thumbnailUrl);
+  const thumb    = getThumbnailUrl(video.thumbnailUrl, video._thumbV || video.updatedAt);
 
   const handleClick = () => {
     navigate(`/video/${video.id}`);

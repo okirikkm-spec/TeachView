@@ -24,7 +24,7 @@ export default function VideoEditModal({ videoId, onClose, onSaved }) {
       setTags(data.tags || []);
       setRequiredTierId(data.requiredTierId ? String(data.requiredTierId) : '');
       if (data.thumbnailUrl) {
-        setThumbPreview(getThumbnailUrl(data.thumbnailUrl));
+        setThumbPreview(getThumbnailUrl(data.thumbnailUrl, Date.now()));
       }
       if (data.uploadedById) {
         fetchTiers(data.uploadedById).then(setMyTiers).catch(() => {});

@@ -130,8 +130,7 @@ public class VideoController {
 
     @GetMapping("/{id}/status")
     public ResponseEntity<Map<String, String>> getVideoStatus(@PathVariable Long id) {
-        VideoResponseDto video = videoService.getVideoById(id);
-        return ResponseEntity.ok(Map.of("status", video.getStatus()));
+        return ResponseEntity.ok(Map.of("status", videoService.getVideoStatus(id)));
     }
 
     @PostMapping("/{id}/view")

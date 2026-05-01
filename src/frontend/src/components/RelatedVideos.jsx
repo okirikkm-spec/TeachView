@@ -18,7 +18,7 @@ export default function RelatedVideos({ videoId }) {
       <h3 className="related-videos-title">Похожие видео</h3>
       <div className="related-videos-list">
         {videos.map(v => {
-          const thumb = getThumbnailUrl(v.thumbnailUrl);
+          const thumb = getThumbnailUrl(v.thumbnailUrl, v.updatedAt);
           const avg = v.averageRating ?? 0;
           return (
             <div key={v.id} className="related-card" onClick={() => navigate(`/video/${v.id}`)}>

@@ -26,6 +26,9 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     @Query("SELECT DISTINCT v FROM Video v LEFT JOIN FETCH v.uploadedBy JOIN v.tags t WHERE t IN :tags AND v.id <> :videoId")
     List<Video> findByTagsInAndIdNot(@Param("tags") List<String> tags, @Param("videoId") Long videoId);
 
+    @Query("SELECT v.status FROM Video v WHERE v.id = :id")
+    VideoStatus findStatusById(@Param("id") Long id);
+
     @Modifying
     @Query("UPDATE Video v SET v.viewCount = COALESCE(v.viewCount, 0) + 1 WHERE v.id = :id")
     void incrementViewCount(@Param("id") Long id);

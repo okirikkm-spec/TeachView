@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import '@videojs/react/video/skin.css';
 import { createPlayer, videoFeatures, useMedia } from '@videojs/react';
 import { VideoSkin } from '@videojs/react/video';
@@ -35,7 +36,7 @@ const Player = createPlayer({ features: safeVideoFeatures });
 
 const CUSTOM_CSS = `
   .media-default-skin
-    .media-button.media-button--icon:not(.media-button--play):not(.media-button--seek):not(.media-button--mute):not(.media-button--captions):not(.media-button--fullscreen):not(.media-button--quality):not(.media-button--rate) {
+    .media-button.media-button--icon:not(.media-button--play):not(.media-button--fullscreen):not(.media-button--quality):not(.media-button--rate):not(.media-button--volume):not(.media-button--subtitles) {
     visibility: hidden !important;
     pointer-events: none !important;
   }
@@ -43,16 +44,75 @@ const CUSTOM_CSS = `
     visibility: hidden !important;
     pointer-events: none !important;
   }
+  /* Fully remove seek/mute/captions and volume popover — replaced by custom controls */
+  .media-default-skin .media-button--seek,
+  .media-default-skin .media-button--mute,
+  .media-default-skin .media-button--captions,
+  .media-default-skin .media-popover--volume {
+    display: none !important;
+  }
+
+  /* Inline volume (mute icon + horizontal slider) */
+  .media-volume-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  .media-volume-slider {
+    width: 4.5rem;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+  }
+  .media-volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: oklch(1 0 0);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 0 1px oklch(0 0 0 / 0.2);
+  }
+  .media-volume-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: oklch(1 0 0);
+    cursor: pointer;
+    border: none;
+  }
+  .media-volume-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: transparent;
+  }
+  @container media-controls (width < 28rem) {
+    .media-volume-slider { display: none; }
+  }
+
+  /* Subtitles button (non-functional placeholder) */
+  .media-button--subtitles .media-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    filter: drop-shadow(0 1px 0 var(--media-controls-current-shadow-color, oklch(0 0 0 / 0.25)));
+  }
 
   .media-quality-item:hover {
     background: oklch(1 0 0 / 0.15) !important;
   }
 
-  /* Quality selector */
+  /* Quality selector — skips fullscreen (pos 1) and subtitles (pos 2), sits at pos 3 */
   .media-quality-wrapper {
     position: absolute;
     bottom: calc(0.75rem + 0.175rem);
-    right: calc(0.75rem + 0.175rem + 2.125rem + 0.075rem);
+    right: calc(0.75rem + 0.175rem + 2 * (2.125rem + 0.075rem));
     width: 2.125rem;
     height: 2.125rem;
     z-index: 15;
@@ -60,11 +120,11 @@ const CUSTOM_CSS = `
   @container media-root (width > 40rem) {
     .media-quality-wrapper {
       bottom: calc(0.75rem + 0.25rem);
-      right: calc(0.75rem + 0.25rem + 2.125rem + 0.125rem);
+      right: calc(0.75rem + 0.25rem + 2 * (2.125rem + 0.125rem));
     }
   }
 
-  /* Playback rate wrapper — skips quality (pos 1) and mute (pos 2), sits at pos 3 */
+  /* Playback rate wrapper — overlays native playback-rate slot (pos 3) */
   .media-rate-wrapper {
     position: absolute;
     bottom: calc(0.75rem + 0.175rem);
@@ -219,6 +279,73 @@ const CUSTOM_CSS = `
     border-color: oklch(0.65 0.18 276 / 0.7);
     color: oklch(0.88 0.12 276);
   }
+
+  /* Gesture overlay (tap-to-seek / play-pause indicator) */
+  .media-gesture-indicator {
+    position: absolute;
+    top: 50%;
+    pointer-events: none;
+    color: oklch(1 0 0);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    z-index: 8;
+    animation: gesture-pulse 650ms ease-out forwards;
+    will-change: opacity, scale;
+  }
+  .media-gesture-indicator--center  { left: 50%;  transform: translate(-50%, -50%); }
+  .media-gesture-indicator--back    { left: 18%;  transform: translate(-50%, -50%); }
+  .media-gesture-indicator--forward { right: 18%; transform: translate(50%, -50%); }
+
+  .media-gesture-circle {
+    background: oklch(0 0 0 / 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .media-gesture-circle svg {
+    width: 2rem;
+    height: 2rem;
+  }
+  .media-gesture-label {
+    background: oklch(0 0 0 / 0.55);
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  @keyframes gesture-pulse {
+    0%   { opacity: 0; scale: 0.7; }
+    20%  { opacity: 1; scale: 1; }
+    100% { opacity: 0; scale: 1.15; }
+  }
+
+  .media-subtitles-overlay {
+    position: absolute;
+    left: 50%;
+    bottom: 4.5rem;
+    transform: translateX(-50%);
+    max-width: 80%;
+    padding: 0.4rem 0.85rem;
+    background: oklch(0 0 0 / 0.65);
+    color: oklch(1 0 0);
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 0.4rem;
+    pointer-events: none;
+    z-index: 9;
+    text-shadow: 0 1px 2px oklch(0 0 0 / 0.7);
+    white-space: pre-wrap;
+  }
+  .media-button--subtitles.is-active { color: oklch(0.75 0.15 276); }
 `;
 
 
@@ -226,9 +353,29 @@ function fmtRate(r) {
   return r.toFixed(2).replace(/\.?0+$/, '') + '×';
 }
 
+function parseSrt(text) {
+  const blocks = text.replace(/\r/g, '').trim().split(/\n\n+/);
+  const toSec = (t) => {
+    const [h, m, rest] = t.split(':');
+    const [s, ms] = rest.split(',');
+    return +h * 3600 + +m * 60 + +s + +ms / 1000;
+  };
+  return blocks.map(b => {
+    const lines = b.split('\n');
+    const time = lines[1]?.match(/(\S+)\s*-->\s*(\S+)/);
+    if (!time) return null;
+    return {
+      start: toSec(time[1]),
+      end: toSec(time[2]),
+      text: lines.slice(2).join('\n').trim(),
+    };
+  }).filter(Boolean)
+}
+
 function getQualityLabel(level) {
   const h = level?.height;
   if (!h) return '?';
+  if (h >= 1440) return '1440p';
   if (h >= 1080) return '1080p';
   if (h >= 720)  return '720p';
   if (h >= 480)  return '480p';
@@ -510,8 +657,20 @@ function FirstFrameShower() {
   return null;
 }
 
-function ClickToToggle() {
+const SEEK_STEP = 10;
+const MULTI_CLICK_WINDOW = 300;
+
+const GESTURE_ICONS = {
+  play:    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>,
+  pause:   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>,
+  back:    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>,
+  forward: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm8.5 0L23 12 14.5 6v12z"/></svg>,
+};
+
+function GestureOverlay() {
   const media = useMedia();
+  const [indicator, setIndicator] = useState(null);
+  const keyRef = useRef(0);
 
   useEffect(() => {
     if (!media?.engine?.media) return;
@@ -519,9 +678,43 @@ function ClickToToggle() {
     const root  = video.closest?.('.media-default-skin');
     if (!root) return;
 
+    let toggleTimer    = null;
+    let seekResetTimer = null;
+    let inSeekMode     = false;
+    let seekAccum      = 0;
+    let seekDirection  = 0;
+
+    const seek = (delta) => {
+      const d = video.duration || 0;
+      const next = (video.currentTime || 0) + delta;
+      video.currentTime = Math.max(0, d ? Math.min(d, next) : next);
+    };
+
+    const show = (type, amount) => {
+      keyRef.current += 1;
+      setIndicator({ type, amount, key: keyRef.current });
+    };
+
+    const resetSeekMode = () => {
+      inSeekMode = false;
+      seekAccum = 0;
+      seekDirection = 0;
+    };
+
+    const doSeekClick = (dir, isLeft) => {
+      if (dir !== seekDirection) {
+        seekAccum = 0;
+        seekDirection = dir;
+      }
+      seekAccum += SEEK_STEP;
+      seek(dir * SEEK_STEP);
+      show(isLeft ? 'back' : 'forward', seekAccum);
+      clearTimeout(seekResetTimer);
+      seekResetTimer = setTimeout(resetSeekMode, MULTI_CLICK_WINDOW);
+    };
+
     const handleClick = (e) => {
       const t = e.target;
-      // Ignore clicks on any interactive control element
       if (
         t.closest('.media-controls') ||
         t.closest('.media-quality-wrapper') ||
@@ -530,18 +723,227 @@ function ClickToToggle() {
         t.tagName === 'INPUT'
       ) return;
 
-      if (video.paused) {
-        video.play();
-      } else {
-        video.pause();
+      const rect = root.getBoundingClientRect();
+      const isLeft = (e.clientX - rect.left) < rect.width / 2;
+      const dir = isLeft ? -1 : 1;
+
+      if (inSeekMode) {
+        doSeekClick(dir, isLeft);
+        return;
       }
+
+      if (toggleTimer) {
+        clearTimeout(toggleTimer);
+        toggleTimer = null;
+        inSeekMode = true;
+        doSeekClick(dir, isLeft);
+        return;
+      }
+
+      toggleTimer = setTimeout(() => {
+        toggleTimer = null;
+        if (video.paused) {
+          video.play();
+          show('play');
+        } else {
+          video.pause();
+          show('pause');
+        }
+      }, MULTI_CLICK_WINDOW);
     };
 
     root.addEventListener('click', handleClick);
-    return () => root.removeEventListener('click', handleClick);
+    return () => {
+      root.removeEventListener('click', handleClick);
+      clearTimeout(toggleTimer);
+      clearTimeout(seekResetTimer);
+    };
   }, [media]);
 
-  return null;
+  if (!indicator) return null;
+
+  const position = indicator.type === 'back' || indicator.type === 'forward'
+    ? indicator.type
+    : 'center';
+
+  return (
+    <div
+      key={indicator.key}
+      className={`media-gesture-indicator media-gesture-indicator--${position}`}
+      aria-hidden="true"
+    >
+      <div className="media-gesture-circle">{GESTURE_ICONS[indicator.type]}</div>
+      {indicator.amount != null && (
+        <div className="media-gesture-label">{indicator.amount} сек</div>
+      )}
+    </div>
+  );
+}
+
+const VOLUME_ICONS = {
+  off:  <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>,
+  low:  <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 9v6h4l5 5V4l-5 5H7zm9.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.72 2.5-2.24 2.5-4.02z"/></svg>,
+  high: <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>,
+};
+
+function InlineVolumeControl() {
+  const media = useMedia();
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted]   = useState(false);
+
+  useEffect(() => {
+    if (!media?.engine?.media) return;
+    const video = media.engine.media;
+    const sync = () => { setVolume(video.volume); setMuted(video.muted); };
+    video.addEventListener('volumechange', sync);
+    sync();
+    return () => video.removeEventListener('volumechange', sync);
+  }, [media]);
+
+  const video = media?.engine?.media;
+
+  const apply = (v) => {
+    if (!video) return;
+    video.volume = Math.max(0, Math.min(1, v));
+    if (v > 0 && video.muted) video.muted = false;
+  };
+
+  const toggleMute = () => {
+    if (!video) return;
+    video.muted = !video.muted;
+    if (!video.muted && video.volume === 0) video.volume = 0.5;
+  };
+
+  const effective = muted ? 0 : volume;
+  const iconKey = effective === 0 ? 'off' : effective < 0.5 ? 'low' : 'high';
+  const fillPct = (effective * 100).toFixed(0);
+  const sliderBg = `linear-gradient(to right, oklch(1 0 0) ${fillPct}%, oklch(1 0 0 / 0.25) ${fillPct}%)`;
+
+  return (
+    <div className="media-volume-inline">
+      <button
+        type="button"
+        className="media-button media-button--icon media-button--volume"
+        onClick={toggleMute}
+        aria-label={muted ? 'Включить звук' : 'Выключить звук'}
+      >
+        {VOLUME_ICONS[iconKey]}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={effective}
+        onChange={e => apply(parseFloat(e.target.value))}
+        className="media-volume-slider"
+        style={{ background: sliderBg }}
+        aria-label="Громкость"
+      />
+    </div>
+  );
+}
+
+function InlineSubtitlesButton({ enabled, onToggle, available }) {
+  return (
+    <button
+      type="button"
+      className={`media-button media-button--icon media-button--subtitles${enabled ? ' is-active' : ''}`}
+      aria-label="Субтитры"
+      title={available ? 'Субтитры' : 'Субтитры недоступны'}
+      onClick={onToggle}
+      disabled={!available}
+      style={{ opacity: available ? 1 : 0.4 }}
+    >
+      <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z"/>
+      </svg>
+    </button>
+  );
+}
+
+function SubtitlesOverlay({ cues, enabled }) {
+  const media = useMedia();
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    if (!enabled || !cues.length || !media?.engine?.media) {
+      setText('');
+      return;
+    }
+    const video = media.engine.media;
+    const onTime = () => {
+      const t = video.currentTime;
+      const cue = cues.find(c => t >= c.start && t <= c.end);
+      setText(cue ? cue.text : '');
+    };
+    video.addEventListener('timeupdate', onTime);
+    onTime();
+    return () => video.removeEventListener('timeupdate', onTime);
+  }, [media, cues, enabled]);
+
+  if (!enabled || !text) return null;
+  return <div className="media-subtitles-overlay">{text}</div>;
+}
+
+function CustomControlsInjector({ subtitlesEnabled, onToggleSubtitles, subtitlesAvailable }) {
+  const media = useMedia();
+  const [slots, setSlots] = useState({ volume: null, subtitles: null });
+
+  useEffect(() => {
+    if (!media?.engine?.media) return;
+    const video = media.engine.media;
+    const root  = video.closest?.('.media-default-skin');
+    if (!root) return;
+
+    let volumeSlot    = null;
+    let subtitlesSlot = null;
+    let obs = null;
+
+    const attach = () => {
+      const controls     = root.querySelector('.media-controls');
+      const timeEl       = controls?.querySelector('.media-time');
+      const fullscreenEl = controls?.querySelector('.media-button--fullscreen');
+      if (!controls || !timeEl || !fullscreenEl) return false;
+
+      volumeSlot = document.createElement('div');
+      volumeSlot.setAttribute('data-slot', 'volume');
+      controls.insertBefore(volumeSlot, timeEl);
+
+      subtitlesSlot = document.createElement('div');
+      subtitlesSlot.setAttribute('data-slot', 'subtitles');
+      controls.insertBefore(subtitlesSlot, fullscreenEl);
+
+      setSlots({ volume: volumeSlot, subtitles: subtitlesSlot });
+      return true;
+    };
+
+    if (!attach()) {
+      obs = new MutationObserver(() => { if (attach()) obs.disconnect(); });
+      obs.observe(root, { childList: true, subtree: true });
+    }
+
+    return () => {
+      obs?.disconnect();
+      volumeSlot?.remove();
+      subtitlesSlot?.remove();
+      setSlots({ volume: null, subtitles: null });
+    };
+  }, [media]);
+
+  return (
+    <>
+      {slots.volume    && createPortal(<InlineVolumeControl />, slots.volume)}
+      {slots.subtitles && createPortal(
+        <InlineSubtitlesButton
+          enabled={subtitlesEnabled}
+          onToggle={onToggleSubtitles}
+          available={subtitlesAvailable}
+        />,
+        slots.subtitles
+      )}
+    </>
+  );
 }
 
 function ViewTracker({ onViewReached }) {
@@ -581,7 +983,41 @@ function ViewTracker({ onViewReached }) {
   return null;
 }
 
-export const MyPlayer = ({ src, onViewReached }) => (
+
+
+// Изолирует state субтитров от основного дерева плеера: при переключении
+// ре-рендерится только этот компонент, а Player.Provider/HlsVideo остаются
+// стабильными — иначе callback-ref в @videojs/react делает detach/attach
+// видео-элемента, hls.js пересоздаёт MediaSource и blob URL меняется.
+function SubtitlesController({ subtitlesUrl }) {
+  const [cues, setCues] = useState([]);
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!subtitlesUrl) { setCues([]); return; }
+    let cancelled = false;
+    fetch(subtitlesUrl)
+      .then(r => r.ok ? r.text() : Promise.reject())
+      .then(t => { if (!cancelled) setCues(parseSrt(t)); })
+      .catch(() => { if (!cancelled) setCues([]); });
+    return () => { cancelled = true; };
+  }, [subtitlesUrl]);
+
+  const toggle = useCallback(() => setEnabled(v => !v), []);
+
+  return (
+    <>
+      <CustomControlsInjector
+        subtitlesEnabled={enabled}
+        onToggleSubtitles={toggle}
+        subtitlesAvailable={cues.length > 0}
+      />
+      <SubtitlesOverlay cues={cues} enabled={enabled} />
+    </>
+  );
+}
+
+export const MyPlayer = ({ src, subtitlesUrl, onViewReached }) => (
   <>
     <style>{CUSTOM_CSS}</style>
     <Player.Provider>
@@ -593,7 +1029,8 @@ export const MyPlayer = ({ src, onViewReached }) => (
           <ControlsSync />
           <VolumeRestorer />
           <FirstFrameShower />
-          <ClickToToggle />
+          <GestureOverlay />
+          <SubtitlesController subtitlesUrl={subtitlesUrl} />
           <ViewTracker onViewReached={onViewReached} />
         </>
       </VideoSkin>

@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -36,11 +35,23 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: teachview-videos
+      TRANSCRIPTION_OUTPUT_DIR: /desktop
+      NVIDIA_DRIVER_CAPABILITIES: all
+      NVIDIA_VISIBLE_DEVICES: all
     depends_on:
       - postgres
       - minio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     volumes:
       - uploads:/app/uploads
+      - C:/Users/Inori/Desktop:/desktop
+      - C:/Users/Inori/.cache/huggingface:/app/whisper-cache
 
 volumes:
   postgres-data:

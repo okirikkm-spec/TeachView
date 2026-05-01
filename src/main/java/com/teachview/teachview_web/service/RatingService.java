@@ -28,10 +28,10 @@ public class RatingService {
             throw new IllegalArgumentException("Оценка должна быть от 1 до 10");
         }
         Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
+            .orElseThrow(() -> new VideoNotFoundException(videoId));
 
         Rating rating = ratingRepository.findByVideoIdAndUserId(videoId, user.getId())
-                .orElse(new Rating());
+            .orElse(new Rating());
         rating.setVideo(video);
         rating.setUser(user);
         rating.setValue(value);
@@ -46,8 +46,8 @@ public class RatingService {
         Integer myRating = null;
         if (userId != null) {
             myRating = ratingRepository.findByVideoIdAndUserId(videoId, userId)
-                    .map(Rating::getValue)
-                    .orElse(null);
+                .map(Rating::getValue)
+                .orElse(null);
         }
         return Map.of(
             "average", avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0,

@@ -163,7 +163,7 @@ export default function ProfilePage() {
           delete pollingRefs.current[videoId];
         }
       } catch { /* сеть — продолжаем */ }
-    }, 3000);
+    }, 5000);
   }, []);
 
   // Очистка всех polling при unmount
@@ -434,9 +434,20 @@ export default function ProfilePage() {
         <VideoEditModal
           videoId={editVideoId}
           onClose={() => setEditVideoId(null)}
-          onSaved={() => {
-            setEditVideoId(null);
-            (isOwnProfile && !id ? fetchMyVideos() : fetchUserVideos(id)).then(setVideos);
+          onSaved={(updated) => {
+            if (updated) {
+              const bust = Date.now();
+              setVideos(prev => prev.map(v =>
+                String(v.id) === String(updated.id)
+                  ? { ...v, ...updated, _thumbV: bust }
+                  : v
+              ));
+              setFavoriteVideos(prev => prev.map(v =>
+                String(v.id) === String(updated.id)
+                  ? { ...v, ...updated, _thumbV: bust }
+                  : v
+              ));
+            }
           }}
         />
       )}

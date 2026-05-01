@@ -3,6 +3,7 @@ package com.teachview.teachview_web.service;
 import com.teachview.teachview_web.entity.Video;
 import com.teachview.teachview_web.entity.VideoStatus;
 import com.teachview.teachview_web.repository.VideoRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -15,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class VideoProcessingService {
@@ -31,7 +33,7 @@ public class VideoProcessingService {
 
     @Async("videoProcessingExecutor")
     public void processAsync(Long videoDbId, Path tempFile, Path workDir,
-                             String videoId, boolean needThumbnail) {
+             String videoId, boolean needThumbnail) {
         log.info("Начинаю обработку видео {} — файл: {}", videoDbId, tempFile);
         try {
             if (!Files.exists(tempFile)) {
@@ -49,15 +51,19 @@ public class VideoProcessingService {
             List<String> command = buildFfmpegCommand(tempFile, workDir, height, hasAudio);
             log.info("FFmpeg команда: {}", String.join(" ", command));
 
+            CompletableFuture<Void> transcriptionFuture = CompletableFuture.runAsync(
+                () -> transcribeVideo(tempFile, workDir)
+            );
+
             int exitCode = runProcess(command);
 
             if (exitCode != 0) {
                 log.error("FFmpeg завершился с кодом {} для видео {}", exitCode, videoDbId);
+                transcriptionFuture.cancel(true);
                 markFailed(videoDbId);
                 return;
             }
 
-            // Генерируем превью из видео, если пользователь не загрузил своё
             String thumbnailPath = null;
             if (needThumbnail) {
                 Path thumbDest = workDir.resolve("thumbnail.jpg");
@@ -78,7 +84,25 @@ public class VideoProcessingService {
                 }
             }
 
-            // Загружаем HLS файлы и превью в MinIO
+            transcriptionFuture.join();
+            List<String> tags = generateTags(workDir);
+
+            Path transcriptionFile = workDir.resolve("transcription.txt");
+            if (Files.exists(transcriptionFile)) {
+                try {
+                    String outputDir = System.getenv("TRANSCRIPTION_OUTPUT_DIR");
+                    Path dest = (outputDir != null && !outputDir.isBlank())
+                        ? Path.of(outputDir)
+                        : Path.of(System.getProperty("user.home"), "Desktop");
+                    Files.copy(transcriptionFile,
+                        dest.resolve("transcription_" + videoId + ".txt"),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    log.info("Транскрипция скопирована в {} для видео {}", dest, videoDbId);
+                } catch (Exception e) {
+                    log.warn("Не удалось скопировать транскрипцию: {}", e.getMessage());
+                }
+            }
+
             try {
                 Files.walk(workDir)
                     .filter(Files::isRegularFile)
@@ -103,6 +127,7 @@ public class VideoProcessingService {
                 if (thumbnailPath != null) {
                     video.setThumbnailPath(thumbnailPath);
                 }
+                if (!tags.isEmpty()) video.setTags(tags);
                 videoRepository.save(video);
             }
 
@@ -112,7 +137,6 @@ public class VideoProcessingService {
             log.error("Ошибка обработки видео {}: {}", videoDbId, e.getMessage(), e);
             markFailed(videoDbId);
         } finally {
-            // Удаляем всю рабочую директорию — оригинал и HLS уже в MinIO
             try {
                 Files.walk(workDir)
                     .sorted(Comparator.reverseOrder())
@@ -129,23 +153,26 @@ public class VideoProcessingService {
         }
     }
 
-    // --- FFmpeg вспомогательные методы ---
 
     private long getVideoDuration(String filePath) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                "ffprobe", "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                filePath
-            );
-            Process process = pb.start();
-            try (Scanner scanner = new Scanner(process.getInputStream())) {
-                return scanner.hasNextDouble() ? (long) scanner.nextDouble() : 0L;
-            }
-        } catch (Exception e) {
-            return 0L;
+        for (String entry : List.of("format=duration", "stream=duration")) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder(
+                    "ffprobe", "-v", "error",
+                    "-show_entries", entry,
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    filePath
+                );
+                Process process = pb.start();
+                try (Scanner scanner = new Scanner(process.getInputStream())) {
+                    if (scanner.hasNextDouble()) {
+                        long dur = (long) scanner.nextDouble();
+                        if (dur > 0) return dur;
+                    }
+                }
+            } catch (Exception ignored) {}
         }
+        return 0L;
     }
 
     private List<String> buildFfmpegCommand(Path inputFile, Path workDir, int height, boolean hasAudio) {
@@ -157,6 +184,21 @@ public class VideoProcessingService {
         List<String> varStreamMaps = new ArrayList<>();
         int vIndex = 0;
         int aIndex = 0;
+
+        if (height >= 1440) {
+            command.addAll(List.of(
+                "-map", "0:v:0", "-filter:v:" + vIndex, "scale=2560:1440",
+                "-b:v:" + vIndex, "9000k", "-maxrate:v:" + vIndex, "9630k", "-bufsize:v:" + vIndex, "13500k"
+            ));
+            if (hasAudio) {
+                command.addAll(List.of("-map", "0:a:0"));
+                varStreamMaps.add("v:" + vIndex + ",a:" + aIndex);
+                aIndex++;
+            } else {
+                varStreamMaps.add("v:" + vIndex);
+            }
+            vIndex++;
+        }
 
         if (height >= 1080) {
             command.addAll(List.of(
@@ -204,8 +246,9 @@ public class VideoProcessingService {
         }
 
         command.addAll(List.of(
-            "-c:v", "libx264", "-profile:v", "main", "-crf", "20",
-            "-sc_threshold", "0", "-g", "48", "-keyint_min", "48",
+            "-c:v", "h264_nvenc", "-profile:v", "high", "-level", "5.1",
+            "-preset", "p4", "-rc", "vbr", "-cq", "23",
+            "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
             "-f", "hls",
             "-hls_time", "4",
             "-hls_playlist_type", "vod",
@@ -222,18 +265,18 @@ public class VideoProcessingService {
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
-        // Читаем весь вывод, чтобы процесс не заблокировался на полном буфере
-        StringBuilder output = new StringBuilder();
+        LinkedList<String> lastLines = new LinkedList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
+                lastLines.add(line);
+                if (lastLines.size() > 50) lastLines.removeFirst();
             }
         }
 
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            log.error("Процесс завершился с кодом {}. Вывод:\n{}", exitCode, output);
+            log.error("Процесс завершился с кодом {}. Последние строки:\n{}", exitCode, String.join("\n", lastLines));
         }
         return exitCode;
     }
@@ -247,6 +290,36 @@ public class VideoProcessingService {
         try (Scanner scanner = new Scanner(process.getInputStream())) {
             return scanner.hasNextInt() ? scanner.nextInt() : 0;
         }
+    }
+
+    private void transcribeVideo(Path videoFile, Path workDir) {
+        Path outputFile = workDir.resolve("transcription.txt");
+        Path scriptPath = resolveTranscribeScript();
+        String python = System.getenv().getOrDefault("PYTHON_BIN",
+            System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3");
+        try {
+            log.info("Запуск транскрипции: python={}, script={}, input={}, output={}",
+                python, scriptPath, videoFile, outputFile);
+            int exitCode = runProcess(List.of(python, scriptPath.toString(),
+                videoFile.toString(), outputFile.toString()));
+            if (exitCode != 0) {
+                log.warn("Транскрипция завершилась с кодом {}", exitCode);
+            } else {
+                log.info("Транскрипция сохранена в {}", outputFile);
+            }
+        } catch (Exception e) {
+            log.warn("Ошибка при транскрипции видео: {}", e.getMessage(), e);
+        }
+    }
+
+    private Path resolveTranscribeScript() {
+        String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override, "transcribe.py");
+        }
+        Path docker = Path.of("/app/scripts/transcribe.py");
+        if (Files.exists(docker)) return docker;
+        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "transcribe.py");
     }
 
     private boolean hasAudioStream(String filePath) {
@@ -264,6 +337,38 @@ public class VideoProcessingService {
             return hasAudio;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private Path resolveTagsScript() {
+        String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
+        if (override != null && !override.isBlank())
+            return Path.of(override, "generate_tags.py");
+        Path docker = Path.of("/app/scripts/generate_tags.py");
+        if (Files.exists(docker)) return docker;
+        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "generate_tags.py");
+    }
+
+    private List<String> generateTags(Path workDir) {
+        Path transcriptionFile = workDir.resolve("transcription.txt");
+        Path tagsFile = workDir.resolve("tags.json");
+        if (!Files.exists(transcriptionFile)) return List.of();
+
+        Path scriptPath = resolveTagsScript();
+        String python = System.getenv().getOrDefault("PYTHON_BIN",
+            System.getProperty("os.name").toLowerCase().contains("win")? "python" : "python3");
+        try{
+            log.info("Запуск генерации тегов...");
+            int exitCode = runProcess(List.of(python, scriptPath.toString(),
+                transcriptionFile.toString(), tagsFile.toString()));
+            if (exitCode != 0 || !Files.exists(tagsFile)) return List.of();
+            
+            String json = Files.readString(tagsFile);
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            return mapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+        } catch (Exception e) {
+           log.warn("Ошибка генерации тегов: {}", e.getMessage());
+            return List.of(); 
         }
     }
 }

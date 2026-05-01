@@ -40,9 +40,9 @@ public class PlaylistService {
     @Transactional(readOnly = true)
     public List<PlaylistDto> getPublicPlaylistsByAuthor(Long authorId) {
         return playlistRepository.findPublicByOwnerIdWithVideos(authorId)
-                .stream()
-                .map(PlaylistDto::from)
-                .toList();
+            .stream()
+            .map(PlaylistDto::from)
+            .toList();
     }
 
     @Transactional(readOnly = true)

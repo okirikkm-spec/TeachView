@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,9 +33,9 @@ public class VideoService {
     private final MinioService minioService;
 
     public VideoService(VideoRepository videoRepository,
-                        SubscriptionTierRepository subscriptionTierRepository,
-                        VideoProcessingService videoProcessingService,
-                        MinioService minioService) {
+            SubscriptionTierRepository subscriptionTierRepository,
+            VideoProcessingService videoProcessingService,
+            MinioService minioService) {
         this.videoRepository = videoRepository;
         this.subscriptionTierRepository = subscriptionTierRepository;
         this.videoProcessingService = videoProcessingService;
@@ -42,9 +44,9 @@ public class VideoService {
 
     public List<VideoResponseDto> getAllVideos() {
         return videoRepository.findByStatus(VideoStatus.READY)
-                .stream()
-                .map(VideoResponseDto::from)
-                .toList();
+            .stream()
+            .map(VideoResponseDto::from)
+            .toList();
     }
 
     public List<VideoResponseDto> getMyVideos(User user){
@@ -56,21 +58,24 @@ public class VideoService {
 
     public List<VideoResponseDto> getVideosByUserId(Long userId) {
         return videoRepository.findByUploadedById(userId)
-                .stream()
-                .map(VideoResponseDto::from)
-                .toList();
+            .stream()
+            .map(VideoResponseDto::from)
+            .toList();
     }
 
     public VideoResponseDto getVideoById(Long id) {
         Video video = videoRepository.findById(id)
-                .orElseThrow(() -> new VideoNotFoundException(id));
+            .orElseThrow(() -> new VideoNotFoundException(id));
         return VideoResponseDto.from(video);
     }
 
-    /**
-     * Быстрая загрузка — сохраняет файл на диск и запись в БД,
-     * сразу возвращает ответ клиенту. FFmpeg запускается в фоне.
-     */
+    public String getVideoStatus(Long id) {
+        VideoStatus status = videoRepository.findStatusById(id);
+        if (status == null) throw new VideoNotFoundException(id);
+        return status.name();
+    }
+
+
     public VideoResponseDto upload(MultipartFile file, String title,
             String description, MultipartFile thumbnail, User uploader,
             List<String> tags) {
@@ -91,7 +96,6 @@ public class VideoService {
             throw new VideoProcessingException("Не удалось сохранить файл на диск", e);
         }
 
-        // Сохраняем превью сразу и загружаем в MinIO
         String thumbnailPath = null;
         if (thumbnail != null && !thumbnail.isEmpty()) {
             String ext = getExtension(thumbnail.getOriginalFilename());
@@ -99,14 +103,12 @@ public class VideoService {
             try {
                 Files.copy(thumbnail.getInputStream(), thumbDest);
                 thumbnailPath = "uploads/videos/" + videoId + "/thumbnail." + ext;
-                // Сразу загружаем в MinIO — не ждём FFmpeg
                 minioService.uploadFile(thumbDest, "videos/" + videoId + "/thumbnail." + ext);
             } catch (Exception e) {
                 // не критично
             }
         }
 
-        // Создаём запись в БД со статусом PROCESSING
         Video video = new Video();
         video.setTitle(title != null && !title.isBlank() ? title : file.getOriginalFilename());
         video.setDescription(description);
@@ -117,7 +119,6 @@ public class VideoService {
         video.setTags(tags != null ? tags : new ArrayList<>());
         videoRepository.save(video);
 
-        // Запускаем FFmpeg обработку в фоне (отдельный бин — @Async работает через прокси)
         videoProcessingService.processAsync(video.getId(), tempFile, workDir, videoId, thumbnailPath == null);
 
         return VideoResponseDto.from(video);
@@ -127,7 +128,7 @@ public class VideoService {
     public VideoResponseDto updateVideo(Long id, String title, String description,
             List<String> tags, MultipartFile thumbnail, User currentUser) {
         Video video = videoRepository.findById(id)
-                .orElseThrow(() -> new VideoNotFoundException(id));
+            .orElseThrow(() -> new VideoNotFoundException(id));
         if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Нет прав на редактирование этого видео");
         }
@@ -142,17 +143,33 @@ public class VideoService {
         }
         if (thumbnail != null && !thumbnail.isEmpty()) {
             String videoDir = video.getFilePath().replace("master.m3u8", "");
+            String minioPrefix = videoDir.replaceFirst("^uploads/", "");
             String ext = getExtension(thumbnail.getOriginalFilename());
-            Path thumbDest = Paths.get(videoDir, "thumbnail." + ext);
+            Path tempThumb = null;
             try {
-                Files.deleteIfExists(thumbDest);
-                Files.copy(thumbnail.getInputStream(), thumbDest);
-                video.setThumbnailPath(videoDir + "thumbnail." + ext);
-            } catch (IOException e) {
+                tempThumb = Files.createTempFile("thumb_", "." + ext);
+                Files.copy(thumbnail.getInputStream(), tempThumb, StandardCopyOption.REPLACE_EXISTING);
+                String newMinioKey = minioPrefix + "thumbnail." + ext;
+                minioService.uploadFile(tempThumb, newMinioKey);
+
+                String newThumbPath = videoDir + "thumbnail." + ext;
+                String oldThumbPath = video.getThumbnailPath();
+                if (oldThumbPath != null && !oldThumbPath.equals(newThumbPath)) {
+                    try {
+                        minioService.deleteFolder(oldThumbPath.replaceFirst("^uploads/", ""));
+                    } catch (Exception ignored) {}
+                }
+                video.setThumbnailPath(newThumbPath);
+                video.setUpdatedAt(LocalDateTime.now());
+            } catch (Exception e) {
+            } finally {
+                if (tempThumb != null) {
+                    try { Files.deleteIfExists(tempThumb); } catch (IOException ignored) {}
+                }
             }
         }
-        videoRepository.save(video);
-        return VideoResponseDto.from(video);
+        Video saved = videoRepository.saveAndFlush(video);
+        return VideoResponseDto.from(saved);
     }
 
     public List<VideoResponseDto> getRelatedVideos(Long videoId, int limit) {
@@ -168,15 +185,15 @@ public class VideoService {
         if (related.size() < limit) {
             Set<Long> addedIds = related.stream().map(Video::getId).collect(Collectors.toSet());
             videoRepository.findByUploadedByIdAndIdNot(video.getUploadedBy().getId(), videoId)
-                    .stream()
-                    .filter(v -> addedIds.add(v.getId()))
-                    .forEach(related::add);
+                .stream()
+                .filter(v -> addedIds.add(v.getId()))
+                .forEach(related::add);
         }
 
         return related.stream()
-                .limit(limit)
-                .map(VideoResponseDto::from)
-                .toList();
+            .limit(limit)
+            .map(VideoResponseDto::from)
+            .toList();
     }
 
     @Transactional
@@ -187,14 +204,14 @@ public class VideoService {
 
     public boolean checkAccess(Long videoId, User user, SubscriptionService subscriptionService) {
         Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
+            .orElseThrow(() -> new VideoNotFoundException(videoId));
         return subscriptionService.hasAccessToVideo(video, user);
     }
 
     @Transactional
     public void setRequiredTier(Long videoId, Long tierId, User currentUser) {
         Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
+            .orElseThrow(() -> new VideoNotFoundException(videoId));
         if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Нет прав на редактирование этого видео");
         }
@@ -202,7 +219,7 @@ public class VideoService {
             video.setRequiredTier(null);
         } else {
             SubscriptionTier tier = subscriptionTierRepository.findById(tierId)
-                    .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
+                .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
             if (!tier.getAuthor().getId().equals(currentUser.getId())) {
                 throw new RuntimeException("Этот уровень подписки принадлежит другому автору");
             }
@@ -214,15 +231,13 @@ public class VideoService {
     @Transactional
     public void deleteVideo(Long id, User currentUser) {
         Video video = videoRepository.findById(id)
-                .orElseThrow(() -> new VideoNotFoundException(id));
+            .orElseThrow(() -> new VideoNotFoundException(id));
         if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Нет прав на удаление этого видео");
         }
 
         String filePath = video.getFilePath();
         if (filePath != null) {
-            // Удаляем из MinIO: filePath = "uploads/videos/{videoId}/master.m3u8"
-            // MinIO prefix = "videos/{videoId}/"
             String minioPrefix = filePath.replace("uploads/", "").replace("master.m3u8", "");
             try {
                 minioService.deleteFolder(minioPrefix);

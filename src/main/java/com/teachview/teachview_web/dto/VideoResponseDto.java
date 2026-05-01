@@ -2,6 +2,7 @@ package com.teachview.teachview_web.dto;
 
 import com.teachview.teachview_web.entity.Video;
 import lombok.Data;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,7 @@ public class VideoResponseDto {
     private Integer requiredTierPrice;
     private boolean hasAccess = true;
     private String status;
+    private LocalDateTime updatedAt;
 
     public static VideoResponseDto from(Video video) {
         VideoResponseDto dto = new VideoResponseDto();
@@ -53,6 +55,7 @@ public class VideoResponseDto {
             dto.setRequiredTierPrice(video.getRequiredTier().getPrice());
         }
         dto.setStatus(video.getStatus().name());
+        dto.setUpdatedAt(video.getUpdatedAt());
         return dto;
     }
 }

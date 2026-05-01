@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getVideoById, getStreamUrl, recordView, toggleFavorite } from '../services/videoApi';
+import { getVideoById, getStreamUrl, getSubtitlesUrl, recordView, toggleFavorite } from '../services/videoApi';
 import { fetchMe } from '../services/authApi';
 import { fetchTiers } from '../services/subscriptionApi';
 import { MyPlayer } from '../components/VideoJsPlayer';
@@ -13,8 +13,8 @@ import AddToPlaylist from '../components/AddToPlaylist';
 
 // Мемоизируем плеер, чтобы смена состояний страницы (описание, модалка)
 // не вызывала его пересоздание и мигание
-const StablePlayer = memo(({ src, onViewReached }) => (
-  <MyPlayer src={src} onViewReached={onViewReached} />
+const StablePlayer = memo(({ src, subtitlesUrl, onViewReached }) => (
+  <MyPlayer src={src} subtitlesUrl={subtitlesUrl} onViewReached={onViewReached} />
 ));
 
 export default function VideoPlayerPage() {
@@ -79,6 +79,7 @@ export default function VideoPlayerPage() {
           {hasAccess ? (
             <StablePlayer
               src={getStreamUrl(video.filePath)}
+              subtitlesUrl={getSubtitlesUrl(video.filePath)}
               onViewReached={handleViewReached}
             />
           ) : (

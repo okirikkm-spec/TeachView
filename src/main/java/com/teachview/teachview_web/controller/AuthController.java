@@ -5,7 +5,6 @@ import com.teachview.teachview_web.service.MinioService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

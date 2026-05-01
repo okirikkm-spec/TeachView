@@ -801,6 +801,7 @@ body {
 
 .video-player-wrap {
   width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -977,6 +978,7 @@ body {
 /* Плеер — на всю ширину layout */
 .video-player-page-layout > .video-player-wrap {
   width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: 0;

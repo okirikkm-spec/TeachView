@@ -81,7 +81,7 @@ export default function PlaylistManager({ playlists, isOwnProfile, onPlaylistsCh
 
   const coverUrl = (pl) => {
     const first = pl.videos?.[0];
-    return first ? getThumbnailUrl(first.thumbnailUrl) : null;
+    return first ? getThumbnailUrl(first.thumbnailUrl, first.updatedAt) : null;
   };
 
   return (
@@ -350,8 +350,8 @@ export default function PlaylistManager({ playlists, isOwnProfile, onPlaylistsCh
                               width: '48px', height: '27px', borderRadius: '3px',
                               overflow: 'hidden', flexShrink: 0, background: 'var(--surface)',
                             }}>
-                              {getThumbnailUrl(v.thumbnailUrl) ? (
-                                <img src={getThumbnailUrl(v.thumbnailUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {getThumbnailUrl(v.thumbnailUrl, v.updatedAt) ? (
+                                <img src={getThumbnailUrl(v.thumbnailUrl, v.updatedAt)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               ) : (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

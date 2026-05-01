@@ -21,16 +21,16 @@ public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
 
     public SubscriptionService(SubscriptionTierRepository tierRepository,
-                               SubscriptionRepository subscriptionRepository) {
+           SubscriptionRepository subscriptionRepository) {
         this.tierRepository = tierRepository;
         this.subscriptionRepository = subscriptionRepository;
     }
 
     public List<SubscriptionTierDto> getTiersByAuthor(Long authorId) {
         return tierRepository.findByAuthorIdOrderBySortOrderAscPriceAsc(authorId)
-                .stream()
-                .map(SubscriptionTierDto::from)
-                .toList();
+            .stream()
+            .map(SubscriptionTierDto::from)
+            .toList();
     }
 
     @Transactional
@@ -48,7 +48,7 @@ public class SubscriptionService {
     @Transactional
     public SubscriptionTierDto updateTier(Long tierId, User author, String name, String description, Integer price, Integer sortOrder) {
         SubscriptionTier tier = tierRepository.findById(tierId)
-                .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
+            .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
         if (!tier.getAuthor().getId().equals(author.getId())) {
             throw new RuntimeException("Нет прав на редактирование");
         }
@@ -63,7 +63,7 @@ public class SubscriptionService {
     @Transactional
     public void deleteTier(Long tierId, User author) {
         SubscriptionTier tier = tierRepository.findById(tierId)
-                .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
+            .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
         if (!tier.getAuthor().getId().equals(author.getId())) {
             throw new RuntimeException("Нет прав на удаление");
         }
@@ -73,7 +73,7 @@ public class SubscriptionService {
     @Transactional
     public SubscriptionDto subscribe(User subscriber, Long tierId) {
         SubscriptionTier tier = tierRepository.findById(tierId)
-                .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
+            .orElseThrow(() -> new RuntimeException("Уровень подписки не найден"));
 
         User author = tier.getAuthor();
         if (author.getId().equals(subscriber.getId())) {
@@ -81,8 +81,8 @@ public class SubscriptionService {
         }
 
         Subscription sub = subscriptionRepository
-                .findBySubscriberIdAndAuthorId(subscriber.getId(), author.getId())
-                .orElse(null);
+            .findBySubscriberIdAndAuthorId(subscriber.getId(), author.getId())
+            .orElse(null);
 
         if (sub != null) {
             sub.setTier(tier);
@@ -106,24 +106,24 @@ public class SubscriptionService {
     @Transactional
     public void unsubscribe(User subscriber, Long authorId) {
         Subscription sub = subscriptionRepository
-                .findBySubscriberIdAndAuthorId(subscriber.getId(), authorId)
-                .orElseThrow(() -> new RuntimeException("Подписка не найдена"));
+            .findBySubscriberIdAndAuthorId(subscriber.getId(), authorId)
+            .orElseThrow(() -> new RuntimeException("Подписка не найдена"));
         sub.setActive(false);
         subscriptionRepository.save(sub);
     }
 
     public SubscriptionDto getSubscription(Long subscriberId, Long authorId) {
         return subscriptionRepository.findBySubscriberIdAndAuthorId(subscriberId, authorId)
-                .filter(Subscription::getActive)
-                .map(SubscriptionDto::from)
-                .orElse(null);
+            .filter(Subscription::getActive)
+            .map(SubscriptionDto::from)
+            .orElse(null);
     }
 
     public List<SubscriptionDto> getMySubscriptions(Long subscriberId) {
         return subscriptionRepository.findBySubscriberIdAndActiveTrue(subscriberId)
-                .stream()
-                .map(SubscriptionDto::from)
-                .toList();
+            .stream()
+            .map(SubscriptionDto::from)
+            .toList();
     }
 
     public long getSubscriberCount(Long authorId) {
@@ -136,8 +136,8 @@ public class SubscriptionService {
         if (video.getUploadedBy().getId().equals(user.getId())) return true;
 
         Subscription sub = subscriptionRepository
-                .findBySubscriberIdAndAuthorId(user.getId(), video.getUploadedBy().getId())
-                .orElse(null);
+            .findBySubscriberIdAndAuthorId(user.getId(), video.getUploadedBy().getId())
+            .orElse(null);
 
         if (sub == null || !sub.getActive()) return false;
         if (sub.getExpiresAt() != null && sub.getExpiresAt().isBefore(LocalDateTime.now())) return false;

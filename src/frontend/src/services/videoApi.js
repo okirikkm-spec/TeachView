@@ -72,6 +72,11 @@ export function getStreamUrl(filePath) {
   return `${API_BASE}/${filePath}`;
 }
 
+export function getSubtitlesUrl(filePath) {
+  if (!filePath) return null;
+  return `${API_BASE}/${filePath.replace('master.m3u8', 'transcription.txt')}`;
+}
+
 export async function fetchMyVideos() {
     const res = await fetch(`${API_BASE}/api/videos/my`, {
         headers: getDefaultHeaders(),
@@ -89,8 +94,10 @@ export async function fetchUserVideos(userId) {
   return res.json();
 }
 
-export function getThumbnailUrl(thumbnailPath){
-  return thumbnailPath ? `${API_BASE}/${thumbnailPath}` : null;
+export function getThumbnailUrl(thumbnailPath, version){
+  if (!thumbnailPath) return null;
+  const url = `${API_BASE}/${thumbnailPath}`;
+  return version ? `${url}?v=${encodeURIComponent(version)}` : url;
 }
 
 export async function getVideoById(id) {
