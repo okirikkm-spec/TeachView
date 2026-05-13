@@ -22,8 +22,8 @@ public class CommentService {
     private final VideoRepository videoRepository;
 
     public CommentService(CommentRepository commentRepository,
-                          CommentLikeRepository commentLikeRepository,
-                          VideoRepository videoRepository) {
+            CommentLikeRepository commentLikeRepository,
+            VideoRepository videoRepository) {
         this.commentRepository = commentRepository;
         this.commentLikeRepository = commentLikeRepository;
         this.videoRepository = videoRepository;
@@ -32,25 +32,25 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentResponseDto> getComments(Long videoId, User currentUser) {
         Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
+            .orElseThrow(() -> new VideoNotFoundException(videoId));
         Long videoAuthorId = video.getUploadedBy().getId();
         Long currentUserId = currentUser != null ? currentUser.getId() : null;
 
         return commentRepository.findByVideoIdOrderByCreatedAtDesc(videoId)
-                .stream()
-                .filter(c -> {
-                    if (!c.getHidden()) return true;
-                    return currentUserId != null &&
-                            (currentUserId.equals(videoAuthorId) || currentUserId.equals(c.getUser().getId()));
-                })
-                .map(c -> toDto(c, currentUserId, videoAuthorId))
-                .toList();
+            .stream()
+            .filter(c -> {
+                if (!c.getHidden()) return true;
+                return currentUserId != null &&
+                    (currentUserId.equals(videoAuthorId) || currentUserId.equals(c.getUser().getId()));
+            })
+            .map(c -> toDto(c, currentUserId, videoAuthorId))
+            .toList();
     }
 
     @Transactional
     public CommentResponseDto addComment(Long videoId, User user, String text, boolean hidden) {
         Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new VideoNotFoundException(videoId));
+            .orElseThrow(() -> new VideoNotFoundException(videoId));
         Comment comment = new Comment();
         comment.setVideo(video);
         comment.setUser(user);
@@ -65,7 +65,7 @@ public class CommentService {
     @Transactional
     public CommentResponseDto editComment(Long commentId, User user, String text) {
         Comment comment = commentRepository.findByIdWithRelations(commentId)
-                .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
+            .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
         if (!comment.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Нет прав на редактирование");
         }
@@ -80,7 +80,7 @@ public class CommentService {
     @Transactional
     public void deleteComment(Long commentId, User user) {
         Comment comment = commentRepository.findByIdWithRelations(commentId)
-                .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
+            .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
         Long videoAuthorId = comment.getVideo().getUploadedBy().getId();
         if (!comment.getUser().getId().equals(user.getId()) && !videoAuthorId.equals(user.getId())) {
             throw new RuntimeException("Нет прав на удаление");
@@ -91,7 +91,7 @@ public class CommentService {
     @Transactional
     public CommentResponseDto toggleLike(Long commentId, User user, boolean isLike) {
         Comment comment = commentRepository.findByIdWithRelations(commentId)
-                .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
+            .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
 
         var existing = commentLikeRepository.findByCommentIdAndUserId(commentId, user.getId());
         if (existing.isPresent()) {
@@ -134,8 +134,8 @@ public class CommentService {
         String myReaction = null;
         if (currentUserId != null) {
             myReaction = commentLikeRepository.findByCommentIdAndUserId(comment.getId(), currentUserId)
-                    .map(cl -> cl.getLiked() ? "like" : "dislike")
-                    .orElse(null);
+                .map(cl -> cl.getLiked() ? "like" : "dislike")
+                .orElse(null);
         }
         return CommentResponseDto.from(comment, likes, dislikes, myReaction, videoAuthorId);
     }

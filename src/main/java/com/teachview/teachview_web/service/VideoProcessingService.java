@@ -16,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.Comparator;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class VideoProcessingService {
@@ -51,15 +50,10 @@ public class VideoProcessingService {
             List<String> command = buildFfmpegCommand(tempFile, workDir, height, hasAudio);
             log.info("FFmpeg команда: {}", String.join(" ", command));
 
-            CompletableFuture<Void> transcriptionFuture = CompletableFuture.runAsync(
-                () -> transcribeVideo(tempFile, workDir)
-            );
-
             int exitCode = runProcess(command);
 
             if (exitCode != 0) {
                 log.error("FFmpeg завершился с кодом {} для видео {}", exitCode, videoDbId);
-                transcriptionFuture.cancel(true);
                 markFailed(videoDbId);
                 return;
             }
@@ -84,7 +78,7 @@ public class VideoProcessingService {
                 }
             }
 
-            transcriptionFuture.join();
+            transcribeVideo(tempFile, workDir);
             List<String> tags = generateTags(workDir);
 
             Path transcriptionFile = workDir.resolve("transcription.txt");

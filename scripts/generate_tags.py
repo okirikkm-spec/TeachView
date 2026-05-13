@@ -1,9 +1,9 @@
 """
-Generate tags from transcription using Qwen/Qwen2.5-3B-Instruct.
+Generate tags from transcription using Qwen/Qwen3-4B-Instruct-2507.
 Usage: python generate_tags.py <transcription_file> <output_json>
 
 Env vars:
-  TAGS_MODEL    (default: Qwen/Qwen2.5-3B-Instruct)
+  TAGS_MODEL    (default: Qwen/Qwen3-4B-Instruct-2507)
   WHISPER_DEVICE (reused: cuda / cpu)
 """
 
@@ -38,7 +38,7 @@ def generate_tags(text: str) -> list:
     from transformers import AutoModelForCausalLM, AutoTokenizer
     import torch
 
-    model_name = os.environ.get("TAGS_MODEL", "Qwen/Qwen2.5-3B-Instruct")
+    model_name = os.environ.get("TAGS_MODEL", "Qwen/Qwen3-4B-Instruct-2507")
     device = os.environ.get("WHISPER_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"[tags] Loading {model_name} on {device}...", file=sys.stderr)
@@ -93,8 +93,9 @@ def generate_tags(text: str) -> list:
             **inputs,
             max_new_tokens=250,
             do_sample=True,
-            temperature=0.6,
-            top_p=0.9,
+            temperature=0.7,
+            top_p=0.8,
+            top_k=20,
             repetition_penalty=1.1,
             pad_token_id=tokenizer.eos_token_id,
         )

@@ -11,8 +11,7 @@ import RelatedVideos from '../components/RelatedVideos';
 import VideoEditModal from '../components/VideoEditModal';
 import AddToPlaylist from '../components/AddToPlaylist';
 
-// Мемоизируем плеер, чтобы смена состояний страницы (описание, модалка)
-// не вызывала его пересоздание и мигание
+
 const StablePlayer = memo(({ src, subtitlesUrl, onViewReached }) => (
   <MyPlayer src={src} subtitlesUrl={subtitlesUrl} onViewReached={onViewReached} />
 ));

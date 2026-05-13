@@ -61,7 +61,6 @@ public class PlaylistController {
         return playlistService.updatePlaylist(id, user, name, description, isPublic);
     }
 
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePlaylist(@PathVariable Long id,
             @AuthenticationPrincipal User user) {
@@ -83,8 +82,6 @@ public class PlaylistController {
         return playlistService.removeVideo(id, videoId, user);
     }
 
-    // PUT /api/playlists/1/reorder
-    // Body: [10, 5, 3] — список videoId в нужном порядке
     @PutMapping("/{id}/reorder")
     public PlaylistDto reorderVideos(@PathVariable Long id,
             @AuthenticationPrincipal User user,

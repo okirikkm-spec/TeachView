@@ -10,8 +10,6 @@ const jsonHeaders = () => ({
   "Content-Type": "application/json",
 });
 
-// ─── Плейлисты ───
-
 export async function fetchMyPlaylists() {
   const res = await fetch(`${API_BASE}/api/playlists/my`, {
     headers: getDefaultHeaders(),
@@ -64,7 +62,6 @@ export async function deletePlaylist(playlistId) {
   if (!res.ok) throw new Error("Ошибка удаления плейлиста");
 }
 
-// ─── Видео в плейлисте ───
 
 export async function addVideoToPlaylist(playlistId, videoId) {
   const res = await fetch(`${API_BASE}/api/playlists/${playlistId}/videos/${videoId}`, {

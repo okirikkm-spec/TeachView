@@ -23,5 +23,5 @@ public class CommentLike {
     private User user;
 
     @Column(nullable = false)
-    private Boolean liked; // true = like, false = dislike
+    private Boolean liked;
 }

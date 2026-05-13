@@ -7,10 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Отдаёт index.html для всех маршрутов React Router,
- * чтобы браузер мог загрузить SPA и обработать маршрут на стороне клиента.
- */
+
 @RestController
 public class SpaController {
 
@@ -22,7 +19,7 @@ public class SpaController {
     )
     public ResponseEntity<Resource> index() {
         return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_HTML)
-                .body(INDEX_HTML);
+            .contentType(MediaType.TEXT_HTML)
+            .body(INDEX_HTML);
     }
 }

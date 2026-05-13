@@ -10,8 +10,6 @@ const jsonHeaders = () => ({
   "Content-Type": "application/json",
 });
 
-// ─── Tiers ───
-
 export async function fetchTiers(authorId) {
   const res = await fetch(`${API_BASE}/api/subscriptions/tiers/${authorId}`, {
     headers: getDefaultHeaders(),
@@ -47,8 +45,6 @@ export async function deleteTier(tierId) {
   });
   if (!res.ok) throw new Error("Ошибка удаления уровня подписки");
 }
-
-// ─── Subscriptions ───
 
 export async function subscribe(tierId) {
   const res = await fetch(`${API_BASE}/api/subscriptions/subscribe/${tierId}`, {

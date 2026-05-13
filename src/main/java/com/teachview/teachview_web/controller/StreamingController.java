@@ -19,15 +19,8 @@ public class StreamingController {
         this.minioService = minioService;
     }
 
-    /**
-     * Перехватывает запросы к /uploads/** и отдаёт файлы из MinIO.
-     *
-     * URL:       /uploads/videos/{videoId}/master.m3u8  → MinIO key: videos/{videoId}/master.m3u8
-     * URL:       /uploads/avatars/{userId}.jpg          → MinIO key: avatars/{userId}.jpg
-     */
     @GetMapping("/uploads/**")
     public ResponseEntity<StreamingResponseBody> streamVideo(HttpServletRequest request) {
-        // Вырезаем "/uploads/" → получаем ключ в MinIO: "videos/{videoId}/filename"
         String minioKey = request.getRequestURI().substring("/uploads/".length());
 
         try {

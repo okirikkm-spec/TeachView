@@ -2,6 +2,7 @@ package com.teachview.teachview_web.repository;
 
 import com.teachview.teachview_web.entity.PlaylistVideo;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,4 +16,8 @@ public interface PlaylistVideoRepository extends JpaRepository<PlaylistVideo, Lo
 
     @Query("SELECT COALESCE(MAX(pv.position), -1) FROM PlaylistVideo pv WHERE pv.playlist.id = :playlistId")
     int findMaxPosition(@Param("playlistId") Long playlistId);
+
+    @Modifying
+    @Query("DELETE FROM PlaylistVideo pv WHERE pv.video.id = :videoId")
+    void deleteByVideoId(@Param("videoId") Long videoId);
 }

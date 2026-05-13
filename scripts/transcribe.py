@@ -27,7 +27,6 @@ from faster_whisper import WhisperModel
 
 
 def extract_audio(input_file: str) -> str:
-    """Извлекает аудио в 16kHz mono WAV — формат, который Whisper ожидает."""
     wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
     subprocess.run(
         ["ffmpeg", "-y", "-i", input_file,

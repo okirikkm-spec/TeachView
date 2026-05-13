@@ -312,7 +312,7 @@ export default function PlaylistManager({ playlists, isOwnProfile, onPlaylistsCh
                           Перетаскивайте для изменения порядка
                         </p>
                       )}
-                      <div style={{ display: 'grid', gap: '3px', marginBottom: '10px' }}>
+                      <div style={{ display: 'grid', gap: '3px', marginBottom: '10px', gridTemplateColumns: 'minmax(0, 1fr)' }}>
                         {pl.videos.map((v, i) => (
                           <div
                             key={v.id}
@@ -324,6 +324,7 @@ export default function PlaylistManager({ playlists, isOwnProfile, onPlaylistsCh
                             style={{
                               display: 'flex', alignItems: 'center', gap: '6px',
                               padding: '5px 6px', borderRadius: '4px',
+                              minWidth: 0,
                               background: dragIdx === i
                                 ? 'rgba(99,102,241,0.15)'
                                 : overIdx === i && dragIdx !== null && dragIdx !== i
@@ -360,12 +361,22 @@ export default function PlaylistManager({ playlists, isOwnProfile, onPlaylistsCh
                                 </div>
                               )}
                             </div>
-                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{
+                              flex: '1 1 0', minWidth: 0,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
                               {v.title || 'Без названия'}
-                            </span>
+                            </div>
                             <button
                               className="btn btn-ghost btn-sm"
-                              style={{ color: 'var(--error)', flexShrink: 0, padding: '2px' }}
+                              style={{
+                                color: 'var(--error)',
+                                flex: '0 0 auto',
+                                padding: '2px',
+                                width: '22px', height: '22px',
+                                minWidth: '22px',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              }}
                               onClick={(e) => handleRemoveVideo(e, pl.id, v.id)}
                               title="Убрать"
                             >

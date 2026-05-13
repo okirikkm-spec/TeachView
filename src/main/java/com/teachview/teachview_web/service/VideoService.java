@@ -7,6 +7,11 @@ import com.teachview.teachview_web.entity.Video;
 import com.teachview.teachview_web.entity.VideoStatus;
 import com.teachview.teachview_web.exception.VideoNotFoundException;
 import com.teachview.teachview_web.exception.VideoProcessingException;
+import com.teachview.teachview_web.repository.CommentLikeRepository;
+import com.teachview.teachview_web.repository.CommentRepository;
+import com.teachview.teachview_web.repository.FavoriteRepository;
+import com.teachview.teachview_web.repository.PlaylistVideoRepository;
+import com.teachview.teachview_web.repository.RatingRepository;
 import com.teachview.teachview_web.repository.SubscriptionTierRepository;
 import com.teachview.teachview_web.repository.VideoRepository;
 import org.springframework.stereotype.Service;
@@ -31,15 +36,30 @@ public class VideoService {
     private final SubscriptionTierRepository subscriptionTierRepository;
     private final VideoProcessingService videoProcessingService;
     private final MinioService minioService;
+    private final PlaylistVideoRepository playlistVideoRepository;
+    private final FavoriteRepository favoriteRepository;
+    private final RatingRepository ratingRepository;
+    private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
 
     public VideoService(VideoRepository videoRepository,
             SubscriptionTierRepository subscriptionTierRepository,
             VideoProcessingService videoProcessingService,
-            MinioService minioService) {
+            MinioService minioService,
+            PlaylistVideoRepository playlistVideoRepository,
+            FavoriteRepository favoriteRepository,
+            RatingRepository ratingRepository,
+            CommentRepository commentRepository,
+            CommentLikeRepository commentLikeRepository) {
         this.videoRepository = videoRepository;
         this.subscriptionTierRepository = subscriptionTierRepository;
         this.videoProcessingService = videoProcessingService;
         this.minioService = minioService;
+        this.playlistVideoRepository = playlistVideoRepository;
+        this.favoriteRepository = favoriteRepository;
+        this.ratingRepository = ratingRepository;
+        this.commentRepository = commentRepository;
+        this.commentLikeRepository = commentLikeRepository;
     }
 
     public List<VideoResponseDto> getAllVideos() {
@@ -235,6 +255,18 @@ public class VideoService {
         if (!video.getUploadedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Нет прав на удаление этого видео");
         }
+
+        // Удаляем видео из всех плейлистов, где оно встречается
+        playlistVideoRepository.deleteByVideoId(id);
+
+        // Чистим зависимости: лайки комментариев -> комментарии -> избранное -> рейтинги
+        List<Long> commentIds = commentRepository.findIdsByVideoId(id);
+        if (!commentIds.isEmpty()) {
+            commentLikeRepository.deleteByCommentIdIn(commentIds);
+        }
+        commentRepository.deleteByVideoId(id);
+        favoriteRepository.deleteByVideoId(id);
+        ratingRepository.deleteByVideoId(id);
 
         String filePath = video.getFilePath();
         if (filePath != null) {

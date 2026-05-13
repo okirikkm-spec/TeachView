@@ -23,5 +23,5 @@ public class Rating {
     private User user;
 
     @Column(nullable = false)
-    private Integer value; // 1-10
+    private Integer value;
 }

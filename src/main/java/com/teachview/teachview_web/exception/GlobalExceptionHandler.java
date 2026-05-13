@@ -17,19 +17,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(VideoNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(VideoNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", ex.getMessage()));
+            .body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(VideoProcessingException.class)
     public ResponseEntity<Map<String, String>> handleProcessing(VideoProcessingException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", ex.getMessage()));
+            .body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Внутренняя ошибка сервера"));
+            .body(Map.of("error", "Внутренняя ошибка сервера"));
     }
 }

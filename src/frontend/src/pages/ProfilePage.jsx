@@ -145,6 +145,12 @@ export default function ProfilePage() {
     try {
       await deleteVideo(videoId);
       setVideos(prev => prev.filter(v => v.id !== videoId));
+      setFavoriteVideos(prev => prev.filter(v => v.id !== videoId));
+      setPlaylists(prev => prev.map(pl => {
+        const filtered = (pl.videos || []).filter(v => v.id !== videoId);
+        if (filtered.length === (pl.videos || []).length) return pl;
+        return { ...pl, videos: filtered, videoCount: filtered.length };
+      }));
     } catch (err) {
       alert(err.message || 'Ошибка при удалении видео');
     }
@@ -162,18 +168,16 @@ export default function ProfilePage() {
           clearInterval(pollingRefs.current[videoId]);
           delete pollingRefs.current[videoId];
         }
-      } catch { /* сеть — продолжаем */ }
+      } catch {  }
     }, 5000);
   }, []);
 
-  // Очистка всех polling при unmount
   useEffect(() => {
     return () => {
       Object.values(pollingRefs.current).forEach(clearInterval);
     };
   }, []);
 
-  // Запуск polling для видео, которые уже PROCESSING при загрузке страницы
   useEffect(() => {
     videos.forEach(v => {
       if (v.status === 'PROCESSING') {

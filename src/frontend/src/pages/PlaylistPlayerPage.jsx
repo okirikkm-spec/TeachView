@@ -30,7 +30,7 @@ export default function PlaylistPlayerPage() {
     if (currentVideoId) recordView(currentVideoId);
   }, [currentVideoId]);
 
-  // Загружаем плейлист
+
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -101,7 +101,6 @@ export default function PlaylistPlayerPage() {
                 <div className="video-player-title-row">
                   <h1 className="video-player-title">{video.title}</h1>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {/* Навигация по плейлисту */}
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={handlePrev}
@@ -208,7 +207,6 @@ export default function PlaylistPlayerPage() {
                               </svg>
                             </div>
                         }
-                        {/* Номер */}
                         <div style={{
                           position: 'absolute', top: '4px', left: '4px',
                           background: isActive ? 'var(--accent, #6366f1)' : 'rgba(0,0,0,0.6)',

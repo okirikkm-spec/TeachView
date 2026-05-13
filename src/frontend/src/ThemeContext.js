@@ -12,7 +12,6 @@ if (savedTheme === 'light') {
 
 let isAnimating = false;
 
-/* ── Easing: easeInOutQuart и её обратная функция ────────── */
 function easeInOutQuart(t) {
   return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
 }

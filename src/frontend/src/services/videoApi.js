@@ -142,8 +142,6 @@ export async function fetchRelatedVideos(id, limit = 8) {
   return res.json();
 }
 
-// --- Rating API ---
-
 export async function getRating(videoId) {
   const res = await fetch(`${API_BASE}/api/videos/${videoId}/rating`, {
     headers: getDefaultHeaders(),
@@ -164,8 +162,6 @@ export async function rateVideo(videoId, value) {
   if (!res.ok) throw new Error("Ошибка при оценке видео");
   return res.json();
 }
-
-// --- Comments API ---
 
 export async function fetchComments(videoId) {
   const res = await fetch(`${API_BASE}/api/videos/${videoId}/comments`, {
@@ -235,8 +231,6 @@ export async function authorLikeComment(videoId, commentId) {
   if (!res.ok) throw new Error("Ошибка");
   return res.json();
 }
-
-// --- Favorites API ---
 
 export async function toggleFavorite(videoId) {
   const res = await fetch(`${API_BASE}/api/favorites/${videoId}`, {
