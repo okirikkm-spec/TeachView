@@ -15,7 +15,6 @@ export default function AddToPlaylist({ videoId }) {
     }
   }, [open]);
 
-  // Закрыть при клике вне
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -56,7 +55,6 @@ export default function AddToPlaylist({ videoId }) {
     }
   };
 
-  // Проверить есть ли видео уже в плейлисте
   const isVideoInPlaylist = (pl) => {
     return pl.videos && pl.videos.some(v => v.id === parseInt(videoId));
   };

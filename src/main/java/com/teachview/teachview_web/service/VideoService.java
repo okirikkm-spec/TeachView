@@ -14,6 +14,7 @@ import com.teachview.teachview_web.repository.PlaylistVideoRepository;
 import com.teachview.teachview_web.repository.RatingRepository;
 import com.teachview.teachview_web.repository.SubscriptionTierRepository;
 import com.teachview.teachview_web.repository.VideoRepository;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,28 +66,28 @@ public class VideoService {
     public List<VideoResponseDto> getAllVideos() {
         return videoRepository.findByStatus(VideoStatus.READY)
             .stream()
-            .map(VideoResponseDto::from)
+            .map(this::toDtoWithRatingStats)
             .toList();
     }
 
     public List<VideoResponseDto> getMyVideos(User user){
         return videoRepository.findByUploadedBy(user)
             .stream()
-            .map(VideoResponseDto::from)
+            .map(this::toDtoWithRatingStats)
             .toList();
     }
 
     public List<VideoResponseDto> getVideosByUserId(Long userId) {
         return videoRepository.findByUploadedById(userId)
             .stream()
-            .map(VideoResponseDto::from)
+            .map(this::toDtoWithRatingStats)
             .toList();
     }
 
     public VideoResponseDto getVideoById(Long id) {
         Video video = videoRepository.findById(id)
             .orElseThrow(() -> new VideoNotFoundException(id));
-        return VideoResponseDto.from(video);
+        return toDtoWithRatingStats(video);
     }
 
     public String getVideoStatus(Long id) {
@@ -141,7 +142,7 @@ public class VideoService {
 
         videoProcessingService.processAsync(video.getId(), tempFile, workDir, videoId, thumbnailPath == null);
 
-        return VideoResponseDto.from(video);
+        return toDtoWithRatingStats(video);
     }
 
     @Transactional
@@ -189,7 +190,7 @@ public class VideoService {
             }
         }
         Video saved = videoRepository.saveAndFlush(video);
-        return VideoResponseDto.from(saved);
+        return toDtoWithRatingStats(saved);
     }
 
     public List<VideoResponseDto> getRelatedVideos(Long videoId, int limit) {
@@ -212,7 +213,7 @@ public class VideoService {
 
         return related.stream()
             .limit(limit)
-            .map(VideoResponseDto::from)
+            .map(this::toDtoWithRatingStats)
             .toList();
     }
 
@@ -256,10 +257,8 @@ public class VideoService {
             throw new RuntimeException("Нет прав на удаление этого видео");
         }
 
-        // Удаляем видео из всех плейлистов, где оно встречается
         playlistVideoRepository.deleteByVideoId(id);
 
-        // Чистим зависимости: лайки комментариев -> комментарии -> избранное -> рейтинги
         List<Long> commentIds = commentRepository.findIdsByVideoId(id);
         if (!commentIds.isEmpty()) {
             commentLikeRepository.deleteByCommentIdIn(commentIds);
@@ -277,6 +276,27 @@ public class VideoService {
         }
 
         videoRepository.delete(video);
+    }
+
+    private VideoResponseDto toDtoWithRatingStats(Video video) {
+        VideoResponseDto dto = VideoResponseDto.from(video);
+
+        Double averageRating = ratingRepository.getAverageByVideoId(video.getId());
+        Integer ratingCount = ratingRepository.getCountByVideoId(video.getId());
+
+        dto.setAverageRating(
+            averageRating != null
+                ? Math.round(averageRating * 10.0) / 10.0
+                : 0.0
+        );
+
+        dto.setRatingCount(
+            ratingCount != null
+                ? ratingCount.intValue()
+                : 0
+        );
+
+        return dto;
     }
 
     private String getExtension(String filename) {
