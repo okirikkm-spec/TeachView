@@ -1,7 +1,6 @@
-const API_BASE = process.env.REACT_APP_API_BASE;
+const API_BASE = "";
 
 const getDefaultHeaders = () => ({
-  "ngrok-skip-browser-warning": "true",
   "Authorization": `Bearer ${localStorage.getItem("token")}`,
 });
 
@@ -26,7 +25,6 @@ export function uploadVideo(file, title = '', thumbnailFile = null, tags = [], r
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE}/api/videos/upload`);
     xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`);
-    xhr.setRequestHeader("ngrok-skip-browser-warning", "true");
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {

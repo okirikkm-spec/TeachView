@@ -1,4 +1,4 @@
-export const API_BASE = process.env.REACT_APP_API_BASE;
+export const API_BASE = "";
 
 export async function register(username, email, password) {
     const res = await fetch(`${API_BASE}/api/auth/register`, {
