@@ -4,12 +4,14 @@ import com.teachview.teachview_web.service.MinioService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.InputStream;
 
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RestController
 public class StreamingController {
 
