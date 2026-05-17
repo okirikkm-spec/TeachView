@@ -60,7 +60,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: teachview-videos
-      TRANSCRIPTION_OUTPUT_DIR: /desktop
+      TRANSCRIPTION_OUTPUT_DIR: /app/transcription_output
       JWT_SECRET: ${JWT_SECRET:-teachview-super-secret-key-minimum-32-chars-long}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
     depends_on:
