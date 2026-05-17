@@ -27,25 +27,6 @@ services:
       - "9000:9000"
       - "9001:9001"
 
-  db-init:
-    build: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/teachview_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      JWT_SECRET: ${JWT_SECRET:-teachview-super-secret-key-minimum-32-chars-long}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
-    command: >
-      sh -c "echo 'Applying database migrations...' &&
-             java -jar app.jar --spring.jpa.hibernate.ddl-auto=update &&
-             echo 'Migrations applied successfully'"
-    restart: no
-
   app:
     build: .
     ports:
@@ -54,7 +35,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/teachview_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: password
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      # Меняем validate на update, чтобы приложение само создавало/обновляло таблицы при старте:
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -68,8 +50,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-      db-init:
-        condition: service_completed_successfully
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
