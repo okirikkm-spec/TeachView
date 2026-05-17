@@ -10,6 +10,11 @@ services:
       - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: quay.io/minio/minio
@@ -22,6 +27,24 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+
+  db-init:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/teachview_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: ${JWT_SECRET:-teachview-super-secret-key-minimum-32-chars-long}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
+    command: >
+      sh -c "echo 'Applying database migrations...' &&
+             java -jar app.jar --spring.jpa.hibernate.ddl-auto=update &&
+             echo 'Migrations applied successfully'"
+    restart: no
 
   app:
     build: .
@@ -38,11 +61,14 @@ services:
       TRANSCRIPTION_OUTPUT_DIR: /desktop
       JWT_SECRET: ${JWT_SECRET:-teachview-super-secret-key-minimum-32-chars-long}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     depends_on:
       - postgres
       - minio
+      - db-init
     volumes:
       - uploads:/app/uploads
+    restart: unless-stopped
 
 volumes:
   postgres-data:
