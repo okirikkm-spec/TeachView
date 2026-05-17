@@ -32,18 +32,32 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Стандартные переменные Spring (жестко и надежно задают параметры БД)
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/teachview_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: password
-      # Меняем validate на update, чтобы приложение само создавало/обновляло таблицы при старте:
+      
+      # Дополнительные переменные из вашего application.properties (на всякий случай)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: teachview_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+      
+      # Режим работы Hibernate и диалект
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: teachview-videos
+      
+      # Лимит загрузки файлов (2 Гигабайта)
       SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 2GB
       SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 2GB
+
+      # Настройки MinIO
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_USER: minioadmin
+      MINIO_PASSWORD: minioadmin
+      MINIO_BUCKET: teachview-videos
+      
       TRANSCRIPTION_OUTPUT_DIR: /app/transcription_output
       JWT_SECRET: ${JWT_SECRET:-teachview-super-secret-key-minimum-32-chars-long}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
