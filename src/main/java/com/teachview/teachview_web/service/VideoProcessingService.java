@@ -240,9 +240,9 @@ public class VideoProcessingService {
         }
 
         command.addAll(List.of(
-            "-c:v", "h264_nvenc", "-profile:v", "high", "-level", "5.1",
-            "-preset", "p4", "-rc", "vbr", "-cq", "23",
-            "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
+            "-c:v", "libx264", "-profile:v", "high", "-level", "4.2",
+            "-preset", "medium", "-crf", "23",
+            "-g", "48", "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*4)",
             "-f", "hls",
             "-hls_time", "4",
             "-hls_playlist_type", "vod",
