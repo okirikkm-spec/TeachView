@@ -25,24 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir faster-whisper==1.2.1 \
-        nvidia-cublas-cu12 nvidia-cudnn-cu12==9.*
-RUN pip install --no-cache-dir transformers>=4.51.0 sentencepiece accelerate \
-    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu121
-
-
-RUN SITE_PKG=$(python3 -c 'import site; print(site.getsitepackages()[0])') \
-    && echo "$SITE_PKG/nvidia/cublas/lib"  > /etc/ld.so.conf.d/nvidia-cublas.conf \
-    && echo "$SITE_PKG/nvidia/cudnn/lib"   > /etc/ld.so.conf.d/nvidia-cudnn.conf \
-    && ldconfig
+# Neural networks disabled — no heavy dependencies needed
+RUN pip install --no-cache-dir requests
 
 COPY scripts /app/scripts
 COPY --from=backend-build /app/target/*.jar app.jar
 
 ENV TRANSCRIBE_SCRIPTS_DIR=/app/scripts
-ENV WHISPER_DEVICE=cuda
-ENV WHISPER_COMPUTE_TYPE=float16
-ENV WHISPER_MODEL=large-v3
 ENV HF_HOME=/app/whisper-cache
 
 EXPOSE 8080
