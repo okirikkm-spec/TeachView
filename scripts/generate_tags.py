@@ -1,16 +1,20 @@
 """
-Generate tags from transcription using Qwen/Qwen3-4B-Instruct-2507.
+Generate tags from transcription using the OpenAI Chat Completions API.
+
 Usage: python generate_tags.py <transcription_file> <output_json>
 
 Env vars:
-  TAGS_MODEL    (default: Qwen/Qwen3-4B-Instruct-2507)
-  WHISPER_DEVICE (reused: cuda / cpu)
+  OPENAI_API_KEY   (required)
+  OPENAI_BASE_URL  (optional; custom endpoint, e.g. proxy)
+  TAGS_MODEL       (default: gpt-4o-mini)
 """
 
 import os
 import sys
 import json
 import re
+
+from openai import OpenAI
 
 
 def strip_srt(text: str) -> str:
@@ -34,84 +38,68 @@ def parse_tags(raw: str) -> list:
     return [p.strip(' "\'.[]').lower() for p in parts if p.strip(' "\'.[]')]
 
 
+SYSTEM_PROMPT = (
+    "Ты — помощник для тегирования видео по расшифровке. "
+    "На основе текста сгенерируй обобщённые теги, которые описывают тип видео, "
+    "его тему и смысл. Не извлекай теги напрямую из слов расшифровки.\n\n"
+
+    "Алгоритм:\n"
+    "1. Определи, что это за тип контента: песня, новости, интервью, подкаст, "
+    "лекция, обучение, обзор, инструкция, комментарий, реклама, выступление и т.п.\n"
+    "2. Определи главную тему.\n"
+    "3. Определи 3–6 обобщённых тематических категорий, которые лучше всего описывают содержание.\n"
+    "4. Верни минимум 5 тегов. Больше добавляй только если уверен.\n\n"
+
+    "Строгие правила:\n"
+    "- не копируй слова и устойчивые фразы из текста, если это не абсолютно необходимая тема\n"
+    "- не делай теги в форме пересказа\n"
+    "- теги должны быть обобщающими категориями, а не цитатами из видео\n"
+    "- первый тег должен описывать тип контента\n"
+    "- теги должны помогать классифицировать видео, а не просто повторять лексику текста\n\n"
+
+    "Для песен не угадывай музыкальный жанр по одному только тексту. "
+    "Если это песня, используй базовые категории: «песня», «музыка», «лирика», "
+    "и добавляй темы, которые выражены в тексте.\n\n"
+
+    "Ответь ТОЛЬКО JSON-массивом строк, без пояснений."
+)
+
+
 def generate_tags(text: str) -> list:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    import torch
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print("[tags] OPENAI_API_KEY is not set", file=sys.stderr)
+        sys.exit(2)
 
-    model_name = os.environ.get("TAGS_MODEL", "Qwen/Qwen3-4B-Instruct-2507")
-    device = os.environ.get("WHISPER_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+    model_name = os.environ.get("TAGS_MODEL", "gpt-4o-mini")
+    base_url = os.environ.get("OPENAI_BASE_URL") or None
 
-    print(f"[tags] Loading {model_name} on {device}...", file=sys.stderr)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        device_map=device,
-    )
-    model.eval()
+    client = OpenAI(api_key=api_key, base_url=base_url)
 
     snippet = text[:8000]
-
-    system = (
-        "Ты — помощник для тегирования видео по расшифровке. "
-        "На основе текста сгенерируй обобщённые теги, которые описывают тип видео, "
-        "его тему и смысл. Не извлекай теги напрямую из слов расшифровки.\n\n"
-
-        "Алгоритм:\n"
-        "1. Определи, что это за тип контента: песня, новости, интервью, подкаст, "
-        "лекция, обучение, обзор, инструкция, комментарий, реклама, выступление и т.п.\n"
-        "2. Определи главную тему.\n"
-        "3. Определи 3–6 обобщённых тематических категорий, которые лучше всего описывают содержание.\n"
-        "4. Верни минимум 5 тегов. Больше добавляй только если уверен.\n\n"
-
-        "Строгие правила:\n"
-        "- не копируй слова и устойчивые фразы из текста, если это не абсолютно необходимая тема\n"
-        "- не делай теги в форме пересказа\n"
-        "- теги должны быть обобщающими категориями, а не цитатами из видео\n"
-        "- первый тег должен описывать тип контента\n"
-        "- теги должны помогать классифицировать видео, а не просто повторять лексику текста\n\n"
-
-        "Для песен не угадывай музыкальный жанр по одному только тексту. "
-        "Если это песня, используй базовые категории: «песня», «музыка», «лирика», "
-        "и добавляй темы, которые выражены в тексте.\n\n"
-
-        "Ответь ТОЛЬКО JSON-массивом строк, без пояснений."
-    )
-
     user = f"Расшифровка:\n{snippet}\n\nСгенерируй минимум 5 обобщённых тегов:"
 
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ]
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    print(f"[tags] Requesting {model_name}...", file=sys.stderr)
+    resp = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.7,
+        top_p=0.8,
+        max_tokens=250,
+    )
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-
-    with torch.no_grad():
-        output_ids = model.generate(
-            **inputs,
-            max_new_tokens=250,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.8,
-            top_k=20,
-            repetition_penalty=1.1,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    generated = output_ids[0][inputs["input_ids"].shape[1]:]
-    raw = tokenizer.decode(generated, skip_special_tokens=True)
+    raw = resp.choices[0].message.content or ""
     print(f"[tags] Raw output: {raw}", file=sys.stderr)
 
     tags = parse_tags(raw)
-
     seen, unique = set(), []
     for t in tags:
         if t and t not in seen and 1 < len(t) < 60:
             seen.add(t)
             unique.append(t)
-
     return unique[:12]
 
 

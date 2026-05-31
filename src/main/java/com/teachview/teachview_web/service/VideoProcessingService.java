@@ -81,22 +81,6 @@ public class VideoProcessingService {
             transcribeVideo(tempFile, workDir);
             List<String> tags = generateTags(workDir);
 
-            Path transcriptionFile = workDir.resolve("transcription.txt");
-            if (Files.exists(transcriptionFile)) {
-                try {
-                    String outputDir = System.getenv("TRANSCRIPTION_OUTPUT_DIR");
-                    Path dest = (outputDir != null && !outputDir.isBlank())
-                        ? Path.of(outputDir)
-                        : Path.of(System.getProperty("user.home"), "Desktop");
-                    Files.copy(transcriptionFile,
-                        dest.resolve("transcription_" + videoId + ".txt"),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    log.info("Транскрипция скопирована в {} для видео {}", dest, videoDbId);
-                } catch (Exception e) {
-                    log.warn("Не удалось скопировать транскрипцию: {}", e.getMessage());
-                }
-            }
-
             try {
                 Files.walk(workDir)
                     .filter(Files::isRegularFile)
@@ -307,13 +291,7 @@ public class VideoProcessingService {
     }
 
     private Path resolveTranscribeScript() {
-        String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
-        if (override != null && !override.isBlank()) {
-            return Path.of(override, "transcribe.py");
-        }
-        Path docker = Path.of("/app/scripts/transcribe.py");
-        if (Files.exists(docker)) return docker;
-        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "transcribe.py");
+        return resolveScript("transcribe.py");
     }
 
     private boolean hasAudioStream(String filePath) {
@@ -335,12 +313,19 @@ public class VideoProcessingService {
     }
 
     private Path resolveTagsScript() {
+        return resolveScript("generate_tags.py");
+    }
+
+    private Path resolveScript(String name) {
         String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
-        if (override != null && !override.isBlank())
-            return Path.of(override, "generate_tags.py");
-        Path docker = Path.of("/app/scripts/generate_tags.py");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override, name);
+        }
+        Path docker = Path.of("/app/scripts", name);
         if (Files.exists(docker)) return docker;
-        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "generate_tags.py");
+        Path local = Path.of(System.getProperty("user.dir"), "scripts", name);
+        if (Files.exists(local)) return local;
+        return Path.of("scripts", name);
     }
 
     private List<String> generateTags(Path workDir) {
