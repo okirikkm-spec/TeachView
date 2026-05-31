@@ -35,7 +35,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: teachview-videos
-      TRANSCRIPTION_OUTPUT_DIR: /desktop
+      TRANSCRIPTION_OUTPUT_DIR: /transcriptions
       NVIDIA_DRIVER_CAPABILITIES: all
       NVIDIA_VISIBLE_DEVICES: all
     depends_on:
@@ -50,10 +50,11 @@ services:
               capabilities: [gpu]
     volumes:
       - uploads:/app/uploads
-      - C:/Users/Inori/Desktop:/desktop
-      - C:/Users/Inori/.cache/huggingface:/app/whisper-cache
+      - ${HOST_TRANSCRIPTION_DIR:-./transcriptions}:/transcriptions
+      - whisper-cache:/app/whisper-cache
 
 volumes:
   postgres-data:
   minio-data:
   uploads:
+  whisper-cache:

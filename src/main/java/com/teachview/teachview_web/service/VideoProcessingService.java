@@ -82,12 +82,11 @@ public class VideoProcessingService {
             List<String> tags = generateTags(workDir);
 
             Path transcriptionFile = workDir.resolve("transcription.txt");
-            if (Files.exists(transcriptionFile)) {
+            String transcriptionOutputDir = System.getenv("TRANSCRIPTION_OUTPUT_DIR");
+            if (Files.exists(transcriptionFile) && transcriptionOutputDir != null && !transcriptionOutputDir.isBlank()) {
                 try {
-                    String outputDir = System.getenv("TRANSCRIPTION_OUTPUT_DIR");
-                    Path dest = (outputDir != null && !outputDir.isBlank())
-                        ? Path.of(outputDir)
-                        : Path.of(System.getProperty("user.home"), "Desktop");
+                    Path dest = Path.of(transcriptionOutputDir);
+                    Files.createDirectories(dest);
                     Files.copy(transcriptionFile,
                         dest.resolve("transcription_" + videoId + ".txt"),
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -288,7 +287,7 @@ public class VideoProcessingService {
 
     private void transcribeVideo(Path videoFile, Path workDir) {
         Path outputFile = workDir.resolve("transcription.txt");
-        Path scriptPath = resolveTranscribeScript();
+        Path scriptPath = resolveScript("transcribe.py");
         String python = System.getenv().getOrDefault("PYTHON_BIN",
             System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3");
         try {
@@ -306,14 +305,14 @@ public class VideoProcessingService {
         }
     }
 
-    private Path resolveTranscribeScript() {
+    private Path resolveScript(String scriptName) {
         String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
         if (override != null && !override.isBlank()) {
-            return Path.of(override, "transcribe.py");
+            return Path.of(override, scriptName);
         }
-        Path docker = Path.of("/app/scripts/transcribe.py");
+        Path docker = Path.of("/app/scripts", scriptName);
         if (Files.exists(docker)) return docker;
-        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "transcribe.py");
+        return Path.of(System.getProperty("user.dir"), "scripts", scriptName);
     }
 
     private boolean hasAudioStream(String filePath) {
@@ -334,21 +333,12 @@ public class VideoProcessingService {
         }
     }
 
-    private Path resolveTagsScript() {
-        String override = System.getenv("TRANSCRIBE_SCRIPTS_DIR");
-        if (override != null && !override.isBlank())
-            return Path.of(override, "generate_tags.py");
-        Path docker = Path.of("/app/scripts/generate_tags.py");
-        if (Files.exists(docker)) return docker;
-        return Path.of(System.getProperty("user.home"), "Desktop", "teachview-web", "scripts", "generate_tags.py");
-    }
-
     private List<String> generateTags(Path workDir) {
         Path transcriptionFile = workDir.resolve("transcription.txt");
         Path tagsFile = workDir.resolve("tags.json");
         if (!Files.exists(transcriptionFile)) return List.of();
 
-        Path scriptPath = resolveTagsScript();
+        Path scriptPath = resolveScript("generate_tags.py");
         String python = System.getenv().getOrDefault("PYTHON_BIN",
             System.getProperty("os.name").toLowerCase().contains("win")? "python" : "python3");
         try{
