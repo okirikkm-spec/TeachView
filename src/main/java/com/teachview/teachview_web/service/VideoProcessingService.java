@@ -4,8 +4,10 @@ import com.teachview.teachview_web.entity.Video;
 import com.teachview.teachview_web.entity.VideoStatus;
 import com.teachview.teachview_web.repository.VideoRepository;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -25,9 +27,45 @@ public class VideoProcessingService {
     private final VideoRepository videoRepository;
     private final MinioService minioService;
 
+    @Value("${video.encoder:cpu}")
+    private String videoEncoder;
+
     public VideoProcessingService(VideoRepository videoRepository, MinioService minioService) {
         this.videoRepository = videoRepository;
         this.minioService = minioService;
+    }
+
+    private boolean useGpu() {
+        return "gpu".equalsIgnoreCase(videoEncoder);
+    }
+
+    @PostConstruct
+    void logEncoderMode() {
+        log.info("VIDEO_ENCODER = {} (gpu/cpu)", videoEncoder);
+        if (!useGpu()) return;
+        try {
+            ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-hide_banner", "-encoders");
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            boolean nvenc = false;
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    if (line.contains("h264_nvenc")) { nvenc = true; break; }
+                }
+            }
+            p.waitFor();
+            if (nvenc) {
+                log.info("h264_nvenc доступен в ffmpeg — GPU-кодирование готово");
+            } else {
+                log.warn("VIDEO_ENCODER=gpu, но h264_nvenc недоступен в ffmpeg. " +
+                    "Проверьте: 1) ffmpeg собран с --enable-nvenc, 2) контейнер запущен с доступом к GPU " +
+                    "(nvidia-container-toolkit + docker-compose.gpu.yml), 3) на хосте установлены драйверы NVIDIA. " +
+                    "Кодирование видео будет падать — переключитесь на VIDEO_ENCODER=cpu.");
+            }
+        } catch (Exception e) {
+            log.warn("Не удалось проверить доступность h264_nvenc: {}", e.getMessage());
+        }
     }
 
     @Async("videoProcessingExecutor")
@@ -223,10 +261,22 @@ public class VideoProcessingService {
             command.addAll(List.of("-c:a", "aac", "-b:a", "128k", "-ac", "2"));
         }
 
+        if (useGpu()) {
+            log.info("Используется GPU-кодирование (h264_nvenc)");
+            command.addAll(List.of(
+                "-c:v", "h264_nvenc", "-profile:v", "high", "-level", "5.1",
+                "-preset", "p4", "-rc", "vbr", "-cq", "23"
+            ));
+        } else {
+            log.info("Используется CPU-кодирование (libx264)");
+            command.addAll(List.of(
+                "-c:v", "libx264", "-profile:v", "high", "-level", "5.1",
+                "-preset", "veryfast", "-crf", "23"
+            ));
+        }
+
         command.addAll(List.of(
-            "-c:v", "h264_nvenc", "-profile:v", "high", "-level", "5.1",
-            "-preset", "p4", "-rc", "vbr", "-cq", "23",
-            "-g", "48", "-no-scenecut", "1", "-forced-idr", "1",
+            "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
             "-f", "hls",
             "-hls_time", "4",
             "-hls_playlist_type", "vod",

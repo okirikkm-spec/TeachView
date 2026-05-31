@@ -93,7 +93,7 @@ def main():
     initial_prompt = os.environ.get("WHISPER_INITIAL_PROMPT") or None
     music_gap = float(os.environ.get("WHISPER_MUSIC_GAP", "1.0"))
     chunk_seconds = int(os.environ.get("WHISPER_CHUNK_SECONDS", "600"))
-    base_url = os.environ.get("OPENAI_BASE_URL") or None
+    base_url = os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
 
     client = OpenAI(api_key=api_key, base_url=base_url)
 

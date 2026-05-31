@@ -22,10 +22,22 @@ services:
       - "9000:9000"
       - "9001:9001"
 
+  xray:
+    image: teddysun/xray
+    restart: unless-stopped
+    volumes:
+      - ./xray-config.json:/etc/xray/config.json:ro
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
   app:
     build: .
     ports:
       - "8080:8080"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-teachview_db}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
@@ -39,9 +51,14 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-whisper-1}
       WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-ru}
       TAGS_MODEL: ${TAGS_MODEL:-gpt-4o-mini}
+      HTTPS_PROXY: ${OPENAI_PROXY:-socks5h://xray:10808}
+      HTTP_PROXY: ${OPENAI_PROXY:-socks5h://xray:10808}
+      NO_PROXY: localhost,127.0.0.1,postgres,minio,xray
+      VIDEO_ENCODER: ${VIDEO_ENCODER:-cpu}
     depends_on:
       - postgres
       - minio
+      - xray
     volumes:
       - uploads:/app/uploads
 

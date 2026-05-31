@@ -72,7 +72,7 @@ def generate_tags(text: str) -> list:
         sys.exit(2)
 
     model_name = os.environ.get("TAGS_MODEL", "gpt-4o-mini")
-    base_url = os.environ.get("OPENAI_BASE_URL") or None
+    base_url = os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
 
     client = OpenAI(api_key=api_key, base_url=base_url)
 

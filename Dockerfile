@@ -15,7 +15,13 @@ COPY src/main ./src/main
 COPY --from=frontend-build /app/frontend/build ./src/main/resources/static
 RUN mvn package -DskipTests
 
-# Step 3: Final image (no GPU / no local LLM — OpenAI API only)
+# Step 3: Final image.
+# Транскрипция/теги — через OpenAI API.
+# Кодирование видео — ffmpeg, поддерживает CPU (libx264) и GPU (h264_nvenc).
+# Для GPU нужны на хосте: NVIDIA-драйвер + nvidia-container-toolkit, плюс запуск
+# с docker-compose.gpu.yml (он добавит device reservations для CUDA).
+# В пакете ffmpeg из Debian/Ubuntu nvenc уже включён, runtime-библиотеки NVIDIA
+# подмонтирует nvidia-container-toolkit автоматически.
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
@@ -25,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir "openai>=1.40.0"
+RUN pip install --no-cache-dir "openai>=1.40.0" "httpx[socks]>=0.27"
 
 COPY scripts /app/scripts
 COPY --from=backend-build /app/target/*.jar app.jar
