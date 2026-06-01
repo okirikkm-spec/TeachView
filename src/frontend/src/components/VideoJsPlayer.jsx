@@ -104,6 +104,13 @@ const CUSTOM_CSS = `
     filter: drop-shadow(0 1px 0 var(--media-controls-current-shadow-color, oklch(0 0 0 / 0.25)));
   }
 
+  /* Subtitles selector wrapper — relative anchor for dropdown menu */
+  .media-subtitles-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
   .media-quality-item:hover {
     background: oklch(1 0 0 / 0.15) !important;
   }
@@ -852,21 +859,76 @@ function InlineVolumeControl() {
   );
 }
 
-function InlineSubtitlesButton({ enabled, onToggle, available }) {
+const SUBTITLES_ICON = (
+  <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z"/>
+  </svg>
+);
+
+function InlineSubtitlesSelector({ availableLanguages, currentLang, onSelectLang }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const hasLanguages = availableLanguages.length > 0;
+
+  if (!hasLanguages) {
+    return (
+      <button
+        type="button"
+        className="media-button media-button--icon media-button--subtitles"
+        aria-label="Субтитры"
+        title="Субтитры недоступны"
+        disabled
+        style={{ opacity: 0.4 }}
+      >
+        {SUBTITLES_ICON}
+      </button>
+    );
+  }
+
+  const items = [{ lang: null, label: 'Выкл' }, ...availableLanguages];
+  const isActive = currentLang !== null;
+
   return (
-    <button
-      type="button"
-      className={`media-button media-button--icon media-button--subtitles${enabled ? ' is-active' : ''}`}
-      aria-label="Субтитры"
-      title={available ? 'Субтитры' : 'Субтитры недоступны'}
-      onClick={onToggle}
-      disabled={!available}
-      style={{ opacity: available ? 1 : 0.4 }}
-    >
-      <svg className="media-icon" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z"/>
-      </svg>
-    </button>
+    <div ref={wrapperRef} className="media-subtitles-wrapper" data-open={open || undefined}>
+      {open && (
+        <div
+          className="media-surface"
+          style={{ position: 'absolute', bottom: 'calc(100% + 0.5rem)', right: 0, minWidth: '7rem', borderRadius: '0.75rem', overflow: 'hidden', padding: '0.25rem 0', zIndex: 20 }}
+        >
+          {items.map(({ lang, label }) => (
+            <button
+              key={lang ?? 'off'}
+              type="button"
+              className="media-quality-item"
+              onClick={() => { onSelectLang(lang); setOpen(false); }}
+              style={{ display: 'block', width: '100%', padding: '0.4rem 0.875rem', background: 'transparent', border: 'none', color: 'oklch(1 0 0)', textAlign: 'left', fontSize: '0.8125rem', fontWeight: currentLang === lang ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 'normal', whiteSpace: 'nowrap' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className={`media-button media-button--icon media-button--subtitles${isActive ? ' is-active' : ''}`}
+        aria-label="Субтитры"
+        title="Субтитры"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+      >
+        {SUBTITLES_ICON}
+      </button>
+    </div>
   );
 }
 
@@ -1010,7 +1072,7 @@ function SubtitlesOverlay({ cues, enabled }) {
   );
 }
 
-function CustomControlsInjector({ subtitlesEnabled, onToggleSubtitles, subtitlesAvailable }) {
+function CustomControlsInjector({ availableLanguages, currentLang, onSelectLang }) {
   const media = useMedia();
   const [slots, setSlots] = useState({ volume: null, subtitles: null });
 
@@ -1059,10 +1121,10 @@ function CustomControlsInjector({ subtitlesEnabled, onToggleSubtitles, subtitles
     <>
       {slots.volume    && createPortal(<InlineVolumeControl />, slots.volume)}
       {slots.subtitles && createPortal(
-        <InlineSubtitlesButton
-          enabled={subtitlesEnabled}
-          onToggle={onToggleSubtitles}
-          available={subtitlesAvailable}
+        <InlineSubtitlesSelector
+          availableLanguages={availableLanguages}
+          currentLang={currentLang}
+          onSelectLang={onSelectLang}
         />,
         slots.subtitles
       )}
@@ -1109,39 +1171,89 @@ function ViewTracker({ onViewReached }) {
 
 
 
+const SUBTITLES_LANG_KEY = 'subtitles-lang';
+
+function loadLang() {
+  try { return localStorage.getItem(SUBTITLES_LANG_KEY) || null; } catch { return null; }
+}
+
+async function fetchCues(url) {
+  if (!url) return null;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const t = await r.text();
+    const cues = parseSrt(t);
+    return cues.length > 0 ? cues : null;
+  } catch {
+    return null;
+  }
+}
+
 // Изолирует state субтитров от основного дерева плеера: при переключении
 // ре-рендерится только этот компонент, а Player.Provider/HlsVideo остаются
 // стабильными — иначе callback-ref в @videojs/react делает detach/attach
 // видео-элемента, hls.js пересоздаёт MediaSource и blob URL меняется.
-function SubtitlesController({ subtitlesUrl }) {
-  const [cues, setCues] = useState([]);
-  const [enabled, setEnabled] = useState(false);
+function SubtitlesController({ subtitleVariants }) {
+  const [cuesByLang, setCuesByLang] = useState({});
+  const [availableLanguages, setAvailableLanguages] = useState([]);
+  const [currentLang, setCurrentLang] = useState(loadLang);
+
+  // Сериализуем массив вариантов в строку, чтобы effect не перезапускался
+  // на каждом рендере родителя из-за смены ссылки.
+  const variantsKey = JSON.stringify(subtitleVariants ?? []);
 
   useEffect(() => {
-    if (!subtitlesUrl) { setCues([]); return; }
+    const variants = subtitleVariants ?? [];
+    if (variants.length === 0) {
+      setCuesByLang({});
+      setAvailableLanguages([]);
+      return;
+    }
     let cancelled = false;
-    fetch(subtitlesUrl)
-      .then(r => r.ok ? r.text() : Promise.reject())
-      .then(t => { if (!cancelled) setCues(parseSrt(t)); })
-      .catch(() => { if (!cancelled) setCues([]); });
+    Promise.all(variants.map(async (v) => {
+      let cues = await fetchCues(v.url);
+      if (!cues && v.fallbackUrl) cues = await fetchCues(v.fallbackUrl);
+      return cues ? { variant: v, cues } : null;
+    })).then(results => {
+      if (cancelled) return;
+      const map = {};
+      const langs = [];
+      for (const r of results) {
+        if (!r) continue;
+        map[r.variant.lang] = r.cues;
+        langs.push({ lang: r.variant.lang, label: r.variant.label });
+      }
+      setCuesByLang(map);
+      setAvailableLanguages(langs);
+    });
     return () => { cancelled = true; };
-  }, [subtitlesUrl]);
+  }, [variantsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggle = useCallback(() => setEnabled(v => !v), []);
+  const effectiveLang = currentLang && cuesByLang[currentLang] ? currentLang : null;
+  const activeCues = effectiveLang ? cuesByLang[effectiveLang] : [];
+
+  const selectLang = useCallback((lang) => {
+    setCurrentLang(lang);
+    try {
+      if (lang) localStorage.setItem(SUBTITLES_LANG_KEY, lang);
+      else localStorage.removeItem(SUBTITLES_LANG_KEY);
+    } catch {}
+  }, []);
 
   return (
     <>
       <CustomControlsInjector
-        subtitlesEnabled={enabled}
-        onToggleSubtitles={toggle}
-        subtitlesAvailable={cues.length > 0}
+        availableLanguages={availableLanguages}
+        currentLang={effectiveLang}
+        onSelectLang={selectLang}
       />
-      <SubtitlesOverlay cues={cues} enabled={enabled} />
+      <SubtitlesOverlay cues={activeCues} enabled={!!effectiveLang} />
     </>
   );
 }
 
-export const MyPlayer = ({ src, subtitlesUrl, onViewReached }) => (
+export const MyPlayer = ({ src, subtitleVariants, onViewReached }) => (
   <>
     <style>{CUSTOM_CSS}</style>
     <Player.Provider>
@@ -1154,7 +1266,7 @@ export const MyPlayer = ({ src, subtitlesUrl, onViewReached }) => (
           <VolumeRestorer />
           <FirstFrameShower />
           <GestureOverlay />
-          <SubtitlesController subtitlesUrl={subtitlesUrl} />
+          <SubtitlesController subtitleVariants={subtitleVariants} />
           <ViewTracker onViewReached={onViewReached} />
         </>
       </VideoSkin>

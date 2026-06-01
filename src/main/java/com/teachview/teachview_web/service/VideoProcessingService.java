@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class VideoProcessingService {
@@ -286,22 +287,27 @@ public class VideoProcessingService {
     }
 
     private void transcribeVideo(Path videoFile, Path workDir) {
-        Path outputFile = workDir.resolve("transcription.txt");
+        // Расшифровка (ru) и перевод (en) на английский для двуязычных субтитров.
+        runTranscriptionTask(videoFile, workDir.resolve("transcription.ru.txt"), "transcribe");
+        runTranscriptionTask(videoFile, workDir.resolve("transcription.en.txt"), "translate");
+    }
+
+    private void runTranscriptionTask(Path videoFile, Path outputFile, String task) {
         Path scriptPath = resolveScript("transcribe.py");
         String python = System.getenv().getOrDefault("PYTHON_BIN",
             System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3");
         try {
-            log.info("Запуск транскрипции: python={}, script={}, input={}, output={}",
-                python, scriptPath, videoFile, outputFile);
+            log.info("Запуск транскрипции (task={}): python={}, script={}, input={}, output={}",
+                task, python, scriptPath, videoFile, outputFile);
             int exitCode = runProcess(List.of(python, scriptPath.toString(),
-                videoFile.toString(), outputFile.toString()));
+                videoFile.toString(), outputFile.toString(), task));
             if (exitCode != 0) {
-                log.warn("Транскрипция завершилась с кодом {}", exitCode);
+                log.warn("Транскрипция (task={}) завершилась с кодом {}", task, exitCode);
             } else {
-                log.info("Транскрипция сохранена в {}", outputFile);
+                log.info("Транскрипция (task={}) сохранена в {}", task, outputFile);
             }
         } catch (Exception e) {
-            log.warn("Ошибка при транскрипции видео: {}", e.getMessage(), e);
+            log.warn("Ошибка при транскрипции видео (task={}): {}", task, e.getMessage(), e);
         }
     }
 
@@ -334,7 +340,12 @@ public class VideoProcessingService {
     }
 
     private List<String> generateTags(Path workDir) {
-        Path transcriptionFile = workDir.resolve("transcription.txt");
+        // Теги генерируем на основе русской расшифровки; для совместимости со
+        // старыми видео фолбэк на legacy transcription.txt.
+        Path transcriptionFile = workDir.resolve("transcription.ru.txt");
+        if (!Files.exists(transcriptionFile)) {
+            transcriptionFile = workDir.resolve("transcription.txt");
+        }
         Path tagsFile = workDir.resolve("tags.json");
         if (!Files.exists(transcriptionFile)) return List.of();
 

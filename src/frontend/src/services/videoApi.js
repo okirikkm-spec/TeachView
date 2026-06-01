@@ -79,6 +79,18 @@ export function getSubtitlesUrl(filePath) {
   return `${API_BASE}/${filePath.replace('master.m3u8', 'transcription.txt')}`;
 }
 
+// Возвращает список вариантов субтитров (per язык) для проигрывателя.
+// Плеер пытается загрузить каждый URL и сам отбрасывает те, что не нашлись.
+// Старые видео без per-language файлов используют legacy transcription.txt как русский.
+export function getSubtitleVariants(filePath) {
+  if (!filePath) return [];
+  const base = (name) => `${API_BASE}/${filePath.replace('master.m3u8', name)}`;
+  return [
+    { lang: 'ru', label: 'Русский', url: base('transcription.ru.txt'), fallbackUrl: base('transcription.txt') },
+    { lang: 'en', label: 'English', url: base('transcription.en.txt') },
+  ];
+}
+
 export async function fetchMyVideos() {
     const res = await fetch(`${API_BASE}/api/videos/my`, {
         headers: getDefaultHeaders(),

@@ -1,12 +1,14 @@
 """
 Transcribe video/audio file using faster-whisper.
-Usage: python transcribe.py <input_file> <output_file>
+Usage: python transcribe.py <input_file> <output_file> [task]
+  task: "transcribe" (default) — keep source language (controlled by WHISPER_LANGUAGE)
+        "translate"            — translate audio to English
 
 Env vars:
   WHISPER_MODEL          (default: large-v3)
   WHISPER_DEVICE         (default: cuda; set "cpu" for CPU-only)
   WHISPER_COMPUTE_TYPE   (default: float16 on cuda, int8 on cpu)
-  WHISPER_LANGUAGE       (default: ru)
+  WHISPER_LANGUAGE       (default: ru; ignored when task=translate)
   WHISPER_INITIAL_PROMPT (default: empty)
   WHISPER_MUSIC_GAP      (default: 1.0 — min seconds of silence to insert ♪)
 """
@@ -37,12 +39,16 @@ def extract_audio(input_file: str) -> str:
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python transcribe.py <input_file> <output_file>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python transcribe.py <input_file> <output_file> [task]", file=sys.stderr)
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
+    task = sys.argv[3] if len(sys.argv) == 4 else "transcribe"
+    if task not in ("transcribe", "translate"):
+        print(f"[transcribe] Unknown task '{task}', expected 'transcribe' or 'translate'", file=sys.stderr)
+        sys.exit(1)
 
     model_name = os.environ.get("WHISPER_MODEL", "large-v3")
     device = os.environ.get("WHISPER_DEVICE", "cuda")
@@ -59,15 +65,18 @@ def main():
     print(f"Extracting audio from: {input_file}", file=sys.stderr)
     wav_file = extract_audio(input_file)
 
-    print(f"Transcribing: {wav_file}", file=sys.stderr)
-    segments, info = model.transcribe(
-        wav_file,
-        language=language,
-        beam_size=5,
-        vad_filter=True,
-        word_timestamps=True,
-        initial_prompt=initial_prompt,
-    )
+    print(f"Transcribing: {wav_file} (task={task})", file=sys.stderr)
+    transcribe_kwargs = {
+        "beam_size": 5,
+        "vad_filter": True,
+        "word_timestamps": True,
+        "initial_prompt": initial_prompt,
+        "task": task,
+    }
+    if task != "translate" and language:
+        transcribe_kwargs["language"] = language
+
+    segments, info = model.transcribe(wav_file, **transcribe_kwargs)
 
     print(
         f"Detected language: {info.language} (probability {info.language_probability:.2f})",
