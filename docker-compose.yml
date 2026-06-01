@@ -53,7 +53,7 @@ services:
       TAGS_MODEL: ${TAGS_MODEL:-gpt-4o-mini}
       HTTPS_PROXY: ${OPENAI_PROXY:-socks5h://xray:10808}
       HTTP_PROXY: ${OPENAI_PROXY:-socks5h://xray:10808}
-      NO_PROXY: localhost,127.0.0.1,postgres,minio,xray
+      NO_PROXY: localhost,127.0.0.1,postgres,minio,xray,api.aitunnel.ru,aitunnel.ru
       VIDEO_ENCODER: ${VIDEO_ENCODER:-cpu}
     depends_on:
       - postgres

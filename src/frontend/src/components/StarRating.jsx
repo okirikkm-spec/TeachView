@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getRating, rateVideo } from '../services/videoApi';
+import { getToken } from '../services/authApi';
 
 export default function StarRating({ videoId }) {
   const [rating, setRating] = useState({ average: 0, count: 0, myRating: 0 });
   const [hovered, setHovered] = useState(0);
+  const navigate = useNavigate();
+  const canRate = !!getToken();
 
   useEffect(() => {
     getRating(videoId).then(setRating);
   }, [videoId]);
 
   const handleRate = async (value) => {
+    if (!canRate) { navigate('/login'); return; }
     try {
       const updated = await rateVideo(videoId, value);
       setRating(updated);

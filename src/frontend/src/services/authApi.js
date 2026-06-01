@@ -48,11 +48,14 @@ export function logoutAndRedirect() {
     window.location.href = "/login";
 }
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "ngrok-skip-browser-warning": "true",
-  "Authorization": `Bearer ${localStorage.getItem("token")}`,
-});
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 
 export async function fetchMe() {

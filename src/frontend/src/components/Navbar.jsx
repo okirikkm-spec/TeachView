@@ -1,10 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { removeToken } from '../services/authApi';
+import { getToken, isTokenExpired, removeToken } from '../services/authApi';
 import { useTheme } from '../ThemeContext';
 
 export default function Navbar({ showSearch = false, searchQuery = '', onSearchChange }) {
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
+
+  const token = getToken();
+  const isAuthenticated = !!token && !isTokenExpired(token);
 
   const handleLogout = () => {
     removeToken();
@@ -39,22 +42,41 @@ export default function Navbar({ showSearch = false, searchQuery = '', onSearchC
       )}
 
       <div className="navbar-actions">
-        <Link className="btn btn-ghost btn-sm" to="/profile">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Профиль
-        </Link>
+        {isAuthenticated ? (
+          <>
+            <Link className="btn btn-ghost btn-sm" to="/profile">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Профиль
+            </Link>
 
-        <button className="btn btn-ghost btn-sm" onClick={handleLogout}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Выйти
-        </button>
+            <button className="btn btn-ghost btn-sm" onClick={handleLogout}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Выйти
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="btn btn-ghost btn-sm" to="/login">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              Войти
+            </Link>
+
+            <Link className="btn btn-primary btn-sm" to="/register">
+              Регистрация
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

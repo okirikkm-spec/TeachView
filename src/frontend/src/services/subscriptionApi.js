@@ -1,9 +1,12 @@
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
-const getDefaultHeaders = () => ({
-  "ngrok-skip-browser-warning": "true",
-  "Authorization": `Bearer ${localStorage.getItem("token")}`,
-});
+const getDefaultHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "ngrok-skip-browser-warning": "true",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 const jsonHeaders = () => ({
   ...getDefaultHeaders(),

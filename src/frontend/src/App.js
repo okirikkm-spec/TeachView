@@ -14,14 +14,14 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login"        element={<LoginPage />} />
+          <Route path="/register"     element={<RegisterPage />} />
+          <Route path="/"             element={<MainPage />} />
+          <Route path="/video/:id"    element={<VideoPlayerPage />} />
+          <Route path="/playlist/:id" element={<PlaylistPlayerPage />} />
           <Route element={<PrivateRoute />}>
-            <Route path="/"              element={<MainPage />} />
-            <Route path="/profile"       element={<ProfilePage />} />
-            <Route path="/profile/:id"   element={<ProfilePage />} />
-            <Route path="/video/:id" element={<VideoPlayerPage />} />
-            <Route path="/playlist/:id" element={<PlaylistPlayerPage />} />
+            <Route path="/profile"     element={<ProfilePage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
           </Route>
         </Routes>
       </BrowserRouter>
