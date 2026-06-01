@@ -50,7 +50,8 @@ public class PlaylistService {
         Playlist playlist = playlistRepository.findByIdWithVideos(playlistId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Плейлист не найден"));
         
-        if (!playlist.isPublicVisible() && !playlist.getOwner().getId().equals(currentUser.getId())) {
+        if (!playlist.isPublicVisible() &&
+                (currentUser == null || !playlist.getOwner().getId().equals(currentUser.getId()))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Это приватный плейлист");
         }
         return PlaylistDto.from(playlist);

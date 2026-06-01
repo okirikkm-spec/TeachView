@@ -1,8 +1,12 @@
 const API_BASE = "";
 
-const getDefaultHeaders = () => ({
-  "Authorization": `Bearer ${localStorage.getItem("token")}`,
-});
+const getDefaultHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "ngrok-skip-browser-warning": "true",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 export async function fetchAllVideos() {
   const res = await fetch(`${API_BASE}/api/videos/all`, {

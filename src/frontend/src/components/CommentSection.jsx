@@ -45,6 +45,7 @@ export default function CommentSection({ videoId, currentUserId }) {
   };
 
   const handleLike = async (commentId) => {
+    if (!currentUserId) { navigate('/login'); return; }
     try {
       const updated = await likeComment(videoId, commentId);
       setComments(prev => prev.map(c => c.id === commentId ? updated : c));
@@ -54,6 +55,7 @@ export default function CommentSection({ videoId, currentUserId }) {
   };
 
   const handleDislike = async (commentId) => {
+    if (!currentUserId) { navigate('/login'); return; }
     try {
       const updated = await dislikeComment(videoId, commentId);
       setComments(prev => prev.map(c => c.id === commentId ? updated : c));
@@ -78,34 +80,41 @@ export default function CommentSection({ videoId, currentUserId }) {
         <span className="comment-section-count">{comments.length}</span>
       </h3>
 
-      <form className="comment-form" onSubmit={handleSubmit}>
-        <textarea
-          className="input comment-input"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Написать комментарий..."
-          rows={2}
-        />
-        <div className="comment-form-actions">
-          <label className="comment-hidden-toggle">
-            <input
-              type="checkbox"
-              checked={hidden}
-              onChange={e => setHidden(e.target.checked)}
-            />
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-            Скрытый
-          </label>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={sending || !text.trim()}>
-            {sending ? 'Отправка...' : 'Отправить'}
-          </button>
-        </div>
-      </form>
+      {currentUserId ? (
+        <form className="comment-form" onSubmit={handleSubmit}>
+          <textarea
+            className="input comment-input"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Написать комментарий..."
+            rows={2}
+          />
+          <div className="comment-form-actions">
+            <label className="comment-hidden-toggle">
+              <input
+                type="checkbox"
+                checked={hidden}
+                onChange={e => setHidden(e.target.checked)}
+              />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              Скрытый
+            </label>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={sending || !text.trim()}>
+              {sending ? 'Отправка...' : 'Отправить'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p className="comment-empty">
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/login')}>Войдите</button>
+          {' '}чтобы оставить комментарий
+        </p>
+      )}
 
       <div className="comment-list">
         {comments.map(comment => (

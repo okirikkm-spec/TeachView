@@ -36,6 +36,8 @@ public class SecurityConfig {
             .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/videos/*/view").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/tiers/**").permitAll()
             .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/subscriptions/count/**").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/playlists/author/**").permitAll()
+            .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/playlists/{id:[0-9]+}").permitAll()
             .requestMatchers("/", "/index.html", "/static/**",
                 "/*.js", "/*.css", "/*.ico", "/*.json", "/*.png", "/*.svg", "/*.txt",
                 "/login", "/register", "/profile", "/profile/**",

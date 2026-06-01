@@ -329,9 +329,6 @@ const CUSTOM_CSS = `
 
   .media-subtitles-overlay {
     position: absolute;
-    left: 50%;
-    bottom: 4.5rem;
-    transform: translateX(-50%);
     max-width: 80%;
     padding: 0.4rem 0.85rem;
     background: oklch(0 0 0 / 0.65);
@@ -340,10 +337,21 @@ const CUSTOM_CSS = `
     font-weight: 500;
     text-align: center;
     border-radius: 0.4rem;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
     z-index: 9;
     text-shadow: 0 1px 2px oklch(0 0 0 / 0.7);
     white-space: pre-wrap;
+    transition: box-shadow 0.15s ease;
+  }
+  .media-subtitles-overlay:hover {
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 0.25);
+  }
+  .media-subtitles-overlay.is-dragging {
+    cursor: grabbing;
+    box-shadow: 0 0 0 1px oklch(0.75 0.15 276 / 0.8);
   }
   .media-button--subtitles.is-active { color: oklch(0.75 0.15 276); }
 `;
@@ -862,9 +870,27 @@ function InlineSubtitlesButton({ enabled, onToggle, available }) {
   );
 }
 
+const SUBTITLE_POS_KEY = 'subtitles-overlay-pos';
+const DEFAULT_POS = { xPct: 50, yPct: 88 };
+
+function loadPos() {
+  try {
+    const raw = localStorage.getItem(SUBTITLE_POS_KEY);
+    if (!raw) return DEFAULT_POS;
+    const p = JSON.parse(raw);
+    if (typeof p.xPct === 'number' && typeof p.yPct === 'number') return p;
+  } catch {}
+  return DEFAULT_POS;
+}
+
 function SubtitlesOverlay({ cues, enabled }) {
   const media = useMedia();
   const [text, setText] = useState('');
+  const [pos, setPos] = useState(loadPos);
+  const [dragging, setDragging] = useState(false);
+  const overlayRef = useRef(null);
+  const dragState = useRef(null);
+  const listenersCleanup = useRef(null);
 
   useEffect(() => {
     if (!enabled || !cues.length || !media?.engine?.media) {
@@ -882,8 +908,106 @@ function SubtitlesOverlay({ cues, enabled }) {
     return () => video.removeEventListener('timeupdate', onTime);
   }, [media, cues, enabled]);
 
+  // Нативные bubble-листенеры прямо на оверлее: обрабатывают drag и
+  // одновременно гасят событие через stopPropagation — bubble не доходит
+  // до .media-default-skin / video, где сидит click-to-play плеера.
+  // (React-овский onPointerDown делегирован на корне и сработал бы ПОСЛЕ
+  // плеерных bubble-хендлеров на промежуточных узлах — слишком поздно.)
+  const overlayCb = useCallback((el) => {
+    listenersCleanup.current?.();
+    listenersCleanup.current = null;
+    overlayRef.current = el;
+    if (!el) return;
+
+    const onDown = (e) => {
+      const parent = el.offsetParent;
+      if (!parent) return;
+      const parentRect = parent.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      dragState.current = {
+        parentRect,
+        offsetX: e.clientX - (elRect.left + elRect.width / 2),
+        offsetY: e.clientY - (elRect.top + elRect.height / 2),
+        halfW: elRect.width / 2,
+        halfH: elRect.height / 2,
+      };
+      el.setPointerCapture?.(e.pointerId);
+      setDragging(true);
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onMove = (e) => {
+      const s = dragState.current;
+      if (!s) return;
+      const cx = e.clientX - s.offsetX;
+      const cy = e.clientY - s.offsetY;
+      const minX = s.parentRect.left + s.halfW;
+      const maxX = s.parentRect.right - s.halfW;
+      const minY = s.parentRect.top + s.halfH;
+      const maxY = s.parentRect.bottom - s.halfH;
+      const clampedX = Math.min(Math.max(cx, minX), maxX);
+      const clampedY = Math.min(Math.max(cy, minY), maxY);
+      const xPct = ((clampedX - s.parentRect.left) / s.parentRect.width) * 100;
+      const yPct = ((clampedY - s.parentRect.top) / s.parentRect.height) * 100;
+      setPos({ xPct, yPct });
+      e.stopPropagation();
+    };
+
+    const onUp = (e) => {
+      if (!dragState.current) return;
+      dragState.current = null;
+      setDragging(false);
+      el.releasePointerCapture?.(e.pointerId);
+      setPos((p) => {
+        try { localStorage.setItem(SUBTITLE_POS_KEY, JSON.stringify(p)); } catch {}
+        return p;
+      });
+      e.stopPropagation();
+    };
+
+    const swallow = (e) => { e.stopPropagation(); };
+
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+    el.addEventListener('mousedown', swallow);
+    el.addEventListener('mouseup', swallow);
+    el.addEventListener('click', swallow);
+    el.addEventListener('dblclick', swallow);
+    el.addEventListener('touchstart', swallow, { passive: false });
+    el.addEventListener('touchend', swallow);
+
+    listenersCleanup.current = () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+      el.removeEventListener('mousedown', swallow);
+      el.removeEventListener('mouseup', swallow);
+      el.removeEventListener('click', swallow);
+      el.removeEventListener('dblclick', swallow);
+      el.removeEventListener('touchstart', swallow);
+      el.removeEventListener('touchend', swallow);
+    };
+  }, []);
+
   if (!enabled || !text) return null;
-  return <div className="media-subtitles-overlay">{text}</div>;
+  return (
+    <div
+      ref={overlayCb}
+      className={`media-subtitles-overlay${dragging ? ' is-dragging' : ''}`}
+      style={{
+        left: `${pos.xPct}%`,
+        top: `${pos.yPct}%`,
+        transform: 'translate(-50%, -50%)',
+      }}
+      title="Перетащите, чтобы изменить положение"
+    >
+      {text}
+    </div>
+  );
 }
 
 function CustomControlsInjector({ subtitlesEnabled, onToggleSubtitles, subtitlesAvailable }) {

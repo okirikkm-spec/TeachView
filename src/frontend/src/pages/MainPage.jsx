@@ -127,12 +127,14 @@ export default function MainPage() {
     const [videos, setVideos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [groupMode, setGroupMode] = useState('tag');
     const [searchParams, setSearchParams] = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
     const [authorStats, setAuthorStats] = useState({});
 
     const activeTag = searchParams.get('tag');
+    // Если пришли по ссылке вида /?tag=..., авто-переключаемся на режим тегов,
+    // иначе по умолчанию открывается «Популярное».
+    const [groupMode, setGroupMode] = useState(activeTag ? 'tag' : 'popular');
 
     useEffect(() => {
         fetchAllVideos()
@@ -207,17 +209,18 @@ export default function MainPage() {
         })
         : videos;
 
-    const allGroups = groupMode === 'tag'
-        ? groupByTag(filteredVideos)
-        : groupByAuthor(filteredVideos);
+    const isPopular = groupMode === 'popular';
 
-    const groups = activeTag && groupMode !== 'popular'
+    const allGroups = !isPopular
+        ? (groupMode === 'tag' ? groupByTag(filteredVideos) : groupByAuthor(filteredVideos))
+        : {};
+
+    const groups = activeTag && !isPopular
         ? Object.fromEntries(Object.entries(allGroups).filter(([k]) => k === activeTag))
         : allGroups;
 
-    const popularVideos = sortByPopularity(filteredVideos).slice(0, 12);
-
-    const popularAuthors = getPopularAuthors(filteredVideos, authorStats);
+    const popularVideos = isPopular ? sortByPopularity(filteredVideos).slice(0, 12) : [];
+    const popularAuthors = isPopular ? getPopularAuthors(filteredVideos, authorStats) : [];
 
     return(
         <>
@@ -226,6 +229,14 @@ export default function MainPage() {
             <div className="main-page">
 
                 <div className="main-page-controls">
+                    <button
+                        className={`btn btn-sm ${isPopular ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => {
+                            setGroupMode('popular');
+                            setSearchParams({});
+                        }}>
+                        Популярное
+                    </button>
                     <button className={`btn btn-sm ${groupMode === 'tag' ? 'btn-primary' : 'btn-ghost'}`}
                         onClick={() => setGroupMode('tag')}>
                         По категориям
@@ -234,15 +245,7 @@ export default function MainPage() {
                         onClick={() => setGroupMode('author')}>
                         По авторам
                     </button>
-                    <button
-                        className={`btn btn-sm ${groupMode === 'popular' ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => {
-                            setGroupMode('popular');
-                            setSearchParams({});
-                        }}>
-                        Популярное
-                    </button>
-                    {activeTag && groupMode !== 'popular' && (
+                    {activeTag && !isPopular && (
                         <span className="tag-filter-badge">
                             #{activeTag}
                             <button
@@ -262,28 +265,32 @@ export default function MainPage() {
                     <p className="main-page-state">Видео пока нет</p>
                 )}
 
-                {!loading && !error && groupMode === 'popular' && (
+                {!loading && !error && isPopular && (
                     <>
-                        <section className="popular-authors-section">
-                            <h2>Популярные авторы</h2>
+                        {popularAuthors.length > 0 && (
+                            <section className="popular-authors-section">
+                                <h2>Популярные авторы</h2>
 
-                            <div className="popular-authors-grid">
-                                {popularAuthors.map(author => (
-                                    <AuthorCard
-                                        key={author.id || author.name}
-                                        author={author}
-                                    />
-                                ))}
-                            </div>
-                        </section>
-                        <CategoryBlock
-                            title="Популярные видео"
-                            videos={popularVideos}
-                        />
+                                <div className="popular-authors-grid">
+                                    {popularAuthors.map(author => (
+                                        <AuthorCard
+                                            key={author.id || author.name}
+                                            author={author}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {popularVideos.length > 0 && (
+                            <CategoryBlock
+                                title="Популярные видео"
+                                videos={popularVideos}
+                            />
+                        )}
                     </>
                 )}
 
-                {!loading && !error && groupMode !== 'popular' && Object.entries(groups).map(([groupTitle, groupVideos]) => (
+                {!loading && !error && !isPopular && Object.entries(groups).map(([groupTitle, groupVideos]) => (
                     <CategoryBlock
                         key={groupTitle}
                         title={groupTitle}

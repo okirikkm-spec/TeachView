@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "PowerShell($out = .\\\\mvnw.cmd clean compile -DskipTests 2>&1; $out | Select-String -Pattern 'ERROR|error:|BUILD ' | Select-Object -Last 30; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(docker compose ps 2>&1)",
+      "PowerShell(nvidia-smi 2>&1)",
+      "PowerShell(docker exec teachview-web-app-1 sh -c \"ffmpeg -hide_banner -encoders 2>&1 | grep -i nvenc\" 2>&1)",
+      "PowerShell(docker exec teachview-web-app-1 sh -c \"ls -la /usr/lib/x86_64-linux-gnu/ 2>/dev/null | grep -iE 'nvidia|cuda|nvenc|nvcuvid' ; echo '---' ; nvidia-smi 2>&1 | head -5\" 2>&1)",
+      "PowerShell(docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi 2>&1)"
     ]
   }
 }
