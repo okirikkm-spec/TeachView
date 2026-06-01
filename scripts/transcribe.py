@@ -1,13 +1,15 @@
 """
 Transcribe video/audio file using the OpenAI Whisper API (verbose_json -> SRT-like output).
 
-Usage: python transcribe.py <input_file> <output_file>
+Usage: python transcribe.py <input_file> <output_file> [task]
+  task: "transcribe" (default) — keep source language (controlled by WHISPER_LANGUAGE)
+        "translate"            — translate audio to English (uses translations endpoint)
 
 Env vars:
   OPENAI_API_KEY         (required)
   OPENAI_BASE_URL        (optional; custom endpoint, e.g. proxy)
   WHISPER_MODEL          (default: whisper-1)
-  WHISPER_LANGUAGE       (default: ru; ISO-639-1; empty string -> auto-detect)
+  WHISPER_LANGUAGE       (default: ru; ISO-639-1; empty string -> auto-detect; ignored when task=translate)
   WHISPER_INITIAL_PROMPT (default: empty)
   WHISPER_MUSIC_GAP      (default: 1.0 — min seconds of silence to insert "♪")
   WHISPER_CHUNK_SECONDS  (default: 600 — split audio into chunks of N sec; API limit ~25 MB)
@@ -76,12 +78,16 @@ def fmt(seconds: float) -> str:
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python transcribe.py <input_file> <output_file>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python transcribe.py <input_file> <output_file> [task]", file=sys.stderr)
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
+    task = sys.argv[3] if len(sys.argv) == 4 else "transcribe"
+    if task not in ("transcribe", "translate"):
+        print(f"[transcribe] Unknown task '{task}', expected 'transcribe' or 'translate'", file=sys.stderr)
+        sys.exit(1)
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -97,11 +103,11 @@ def main():
 
     client = OpenAI(api_key=api_key, base_url=base_url)
 
-    print(f"[transcribe] Extracting audio: {input_file}", file=sys.stderr)
+    print(f"[transcribe] Task={task}, extracting audio: {input_file}", file=sys.stderr)
     wav_file = extract_audio(input_file)
 
     chunks = split_audio(wav_file, chunk_seconds)
-    print(f"[transcribe] Sending {len(chunks)} chunk(s) to OpenAI ({model_name})...", file=sys.stderr)
+    print(f"[transcribe] Sending {len(chunks)} chunk(s) to OpenAI ({model_name}, task={task})...", file=sys.stderr)
 
     all_segments = []
     for chunk_path, offset in chunks:
@@ -111,11 +117,15 @@ def main():
                 "file": f,
                 "response_format": "verbose_json",
             }
-            if language:
-                kwargs["language"] = language
             if initial_prompt:
                 kwargs["prompt"] = initial_prompt
-            resp = client.audio.transcriptions.create(**kwargs)
+            if task == "translate":
+                # translations endpoint always outputs English; no language kwarg
+                resp = client.audio.translations.create(**kwargs)
+            else:
+                if language:
+                    kwargs["language"] = language
+                resp = client.audio.transcriptions.create(**kwargs)
 
         data = resp.model_dump() if hasattr(resp, "model_dump") else json.loads(resp.json())
         for seg in data.get("segments") or []:

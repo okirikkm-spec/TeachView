@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getVideoById, getStreamUrl, getSubtitlesUrl, recordView, getThumbnailUrl } from '../services/videoApi';
+import { getVideoById, getStreamUrl, getSubtitleVariants, recordView, getThumbnailUrl } from '../services/videoApi';
 import { fetchPlaylist } from '../services/playlistApi';
 import { fetchMe } from '../services/authApi';
 import { MyPlayer } from '../components/VideoJsPlayer';
@@ -9,8 +9,8 @@ import StarRating from '../components/StarRating';
 import CommentSection from '../components/CommentSection';
 import AddToPlaylist from '../components/AddToPlaylist';
 
-const StablePlayer = memo(({ src, subtitlesUrl, onViewReached }) => (
-  <MyPlayer src={src} subtitlesUrl={subtitlesUrl} onViewReached={onViewReached} />
+const StablePlayer = memo(({ src, subtitleVariants, onViewReached }) => (
+  <MyPlayer src={src} subtitleVariants={subtitleVariants} onViewReached={onViewReached} />
 ));
 
 export default function PlaylistPlayerPage() {
@@ -87,7 +87,7 @@ export default function PlaylistPlayerPage() {
           {video && (
             <StablePlayer
               src={getStreamUrl(video.filePath)}
-              subtitlesUrl={getSubtitlesUrl(video.filePath)}
+              subtitleVariants={getSubtitleVariants(video.filePath)}
               onViewReached={handleViewReached}
             />
           )}
