@@ -46,6 +46,14 @@ export default function ProfilePage() {
   const isOwnProfile = !id || (currentUser && String(currentUser.id) === String(id));
 
   useEffect(() => {
+    if (isOwnProfile) {
+      document.title = 'Профиль';
+    } else if (user?.username) {
+      document.title = user.username;
+    }
+  }, [isOwnProfile, user?.username]);
+
+  useEffect(() => {
     setLoading(true);
     setEditOpen(false);
     setActiveTab('my');

@@ -52,6 +52,12 @@ export default function VideoPlayerPage() {
     });
   }, [id]);
 
+  useEffect(() => {
+    if (video) {
+      document.title = video.title || video.filename || 'TeachView';
+    }
+  }, [video]);
+
   if (loading) return (
     <>
       <Navbar />
