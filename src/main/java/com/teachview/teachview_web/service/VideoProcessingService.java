@@ -144,7 +144,17 @@ public class VideoProcessingService {
                 if (thumbnailPath != null) {
                     video.setThumbnailPath(thumbnailPath);
                 }
-                if (!tags.isEmpty()) video.setTags(tags);
+                if (!tags.isEmpty()) {
+                    List<String> merged = new ArrayList<>(video.getTags());
+                    Set<String> seen = new HashSet<>();
+                    for (String t : merged) seen.add(t.toLowerCase(Locale.ROOT));
+                    for (String t : tags) {
+                        if (t == null) continue;
+                        String key = t.toLowerCase(Locale.ROOT);
+                        if (seen.add(key)) merged.add(t);
+                    }
+                    video.setTags(merged);
+                }
                 videoRepository.save(video);
             }
 

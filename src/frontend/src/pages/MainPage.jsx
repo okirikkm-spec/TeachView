@@ -137,6 +137,10 @@ export default function MainPage() {
     const [groupMode, setGroupMode] = useState(activeTag ? 'tag' : 'popular');
 
     useEffect(() => {
+        document.title = 'TeachView';
+    }, []);
+
+    useEffect(() => {
         fetchAllVideos()
             .then(data => {
                 setVideos(data);
