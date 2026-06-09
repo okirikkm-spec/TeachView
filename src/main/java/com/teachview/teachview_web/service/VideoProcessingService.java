@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -137,26 +138,7 @@ public class VideoProcessingService {
                 log.warn("Ошибка при загрузке файлов в MinIO для видео {}: {}", videoDbId, e.getMessage());
             }
 
-            Video video = videoRepository.findById(videoDbId).orElse(null);
-            if (video != null) {
-                video.setDuration(duration);
-                video.setStatus(VideoStatus.READY);
-                if (thumbnailPath != null) {
-                    video.setThumbnailPath(thumbnailPath);
-                }
-                if (!tags.isEmpty()) {
-                    List<String> merged = new ArrayList<>(video.getTags());
-                    Set<String> seen = new HashSet<>();
-                    for (String t : merged) seen.add(t.toLowerCase(Locale.ROOT));
-                    for (String t : tags) {
-                        if (t == null) continue;
-                        String key = t.toLowerCase(Locale.ROOT);
-                        if (seen.add(key)) merged.add(t);
-                    }
-                    video.setTags(merged);
-                }
-                videoRepository.save(video);
-            }
+            finalizeVideo(videoDbId, duration, thumbnailPath, tags);
 
             log.info("Видео {} успешно обработано", videoDbId);
 
@@ -170,6 +152,30 @@ public class VideoProcessingService {
                     .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
             } catch (IOException ignored) {}
         }
+    }
+
+    @Transactional
+    public void finalizeVideo(Long videoDbId, long duration, String thumbnailPath, List<String> tags) {
+        Video video = videoRepository.findById(videoDbId).orElse(null);
+        if (video == null) return;
+
+        video.setDuration(duration);
+        video.setStatus(VideoStatus.READY);
+        if (thumbnailPath != null) {
+            video.setThumbnailPath(thumbnailPath);
+        }
+        if (!tags.isEmpty()) {
+            List<String> merged = new ArrayList<>(video.getTags());
+            Set<String> seen = new HashSet<>();
+            for (String t : merged) seen.add(t.toLowerCase(Locale.ROOT));
+            for (String t : tags) {
+                if (t == null) continue;
+                String key = t.toLowerCase(Locale.ROOT);
+                if (seen.add(key)) merged.add(t);
+            }
+            video.setTags(merged);
+        }
+        videoRepository.save(video);
     }
 
     private void markFailed(Long videoDbId) {
