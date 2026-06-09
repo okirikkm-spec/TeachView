@@ -7,7 +7,9 @@ import com.teachview.teachview_web.repository.VideoRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,10 @@ public class VideoProcessingService {
 
     private final VideoRepository videoRepository;
     private final MinioService minioService;
+
+    @Autowired
+    @Lazy
+    private VideoProcessingService self;
 
     @Value("${video.encoder:cpu}")
     private String videoEncoder;
@@ -138,7 +144,7 @@ public class VideoProcessingService {
                 log.warn("Ошибка при загрузке файлов в MinIO для видео {}: {}", videoDbId, e.getMessage());
             }
 
-            finalizeVideo(videoDbId, duration, thumbnailPath, tags);
+            self.finalizeVideo(videoDbId, duration, thumbnailPath, tags);
 
             log.info("Видео {} успешно обработано", videoDbId);
 
