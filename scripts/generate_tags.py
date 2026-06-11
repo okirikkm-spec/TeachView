@@ -43,11 +43,13 @@ def generate_tags(text: str) -> list:
 
     print(f"[tags] Loading {model_name} on {device}...", file=sys.stderr)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # Грузим на CPU, затем переносим на устройство через .to(): accelerate-овский
+    # device_map="cuda" сегфолтится при загрузке шардов на некоторых связках
+    # torch/accelerate (Windows), а простой .to() работает стабильно.
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        device_map=device,
-    )
+    ).to(device)
     model.eval()
 
     snippet = text[:8000]
