@@ -28,6 +28,22 @@ for _lib in ("cublas", "cudnn", "cuda_nvrtc"):
 from faster_whisper import WhisperModel
 
 
+def resolve_device() -> str:
+    """Honour WHISPER_DEVICE if set; otherwise use CUDA only when it's actually
+    available, falling back to CPU. Forcing cuda without a working CUDA runtime
+    makes CTranslate2 crash natively (no catchable exception)."""
+    dev = os.environ.get("WHISPER_DEVICE")
+    if dev:
+        return dev
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+
 def extract_audio(input_file: str) -> str:
     wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
     subprocess.run(
@@ -51,7 +67,7 @@ def main():
         sys.exit(1)
 
     model_name = os.environ.get("WHISPER_MODEL", "large-v3")
-    device = os.environ.get("WHISPER_DEVICE", "cuda")
+    device = resolve_device()
     compute_type = os.environ.get(
         "WHISPER_COMPUTE_TYPE", "int8" if device == "cpu" else "float16"
     )
