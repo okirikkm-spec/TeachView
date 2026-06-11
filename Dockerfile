@@ -27,7 +27,10 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir faster-whisper==1.2.1 \
         nvidia-cublas-cu12 nvidia-cudnn-cu12==9.*
-RUN pip install --no-cache-dir transformers>=4.51.0 sentencepiece accelerate \
+# transformers 5.x сегфолтит с torch cu121 (2.5.1) при загрузке Qwen3 —
+# пинимся на 4.x. Кавычки обязательны: без них shell трактует '>'/'<' как
+# перенаправление и ставит произвольную версию.
+RUN pip install --no-cache-dir "transformers>=4.51,<5" sentencepiece accelerate \
     && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu121
 
 
