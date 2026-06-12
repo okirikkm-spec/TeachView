@@ -46,9 +46,10 @@ export default function Navbar({ showSearch = false, searchQuery = '', onSearchC
             type="button"
             className="navbar-search-toggle"
             aria-label="Поиск"
-            /* preventDefault — чтобы тап по лупе не снимал фокус с открытого поля */
+            /* preventDefault — чтобы тап по лупе не снимал фокус с поля
+               (иначе blur закрыл бы поиск раньше клика и он открылся бы снова) */
             onMouseDown={e => e.preventDefault()}
-            onClick={() => setSearchOpen(true)}
+            onClick={() => setSearchOpen(o => !o)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
