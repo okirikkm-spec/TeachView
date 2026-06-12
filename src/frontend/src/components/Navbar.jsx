@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getToken, isTokenExpired, removeToken } from '../services/authApi';
 import { useTheme } from '../ThemeContext';
@@ -5,6 +6,14 @@ import { useTheme } from '../ThemeContext';
 export default function Navbar({ showSearch = false, searchQuery = '', onSearchChange }) {
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
+
+  // Мобильный режим: поиск свёрнут в лупу, раскрывается по тапу
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
 
   const token = getToken();
   const isAuthenticated = !!token && !isTokenExpired(token);
@@ -15,7 +24,7 @@ export default function Navbar({ showSearch = false, searchQuery = '', onSearchC
   };
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar${searchOpen ? ' navbar--search-open' : ''}`}>
       <Link
         className="navbar-logo"
         to="/"
@@ -32,13 +41,32 @@ export default function Navbar({ showSearch = false, searchQuery = '', onSearchC
       </Link>
 
       {showSearch && (
-        <input
-          className="navbar-search"
-          type="search"
-          placeholder="Поиск видео..."
-          value={searchQuery}
-          onChange={e => onSearchChange?.(e.target.value)}
-        />
+        <>
+          <button
+            type="button"
+            className="navbar-search-toggle"
+            aria-label="Поиск"
+            /* preventDefault — чтобы тап по лупе не снимал фокус с открытого поля */
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => setSearchOpen(true)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+
+          <input
+            ref={searchInputRef}
+            className="navbar-search"
+            type="search"
+            placeholder="Поиск видео..."
+            value={searchQuery}
+            onChange={e => onSearchChange?.(e.target.value)}
+            onBlur={() => setSearchOpen(false)}
+            onKeyDown={e => { if (e.key === 'Escape') e.currentTarget.blur(); }}
+          />
+        </>
       )}
 
       <div className="navbar-actions">

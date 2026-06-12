@@ -584,6 +584,28 @@ body {
 .navbar-search:focus { border-color: var(--accent); }
 .navbar-search::placeholder { color: var(--text-faint); }
 
+/* Кнопка-лупа: видна только на мобильных */
+.navbar-search-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.navbar-search-toggle:hover { color: var(--text); border-color: var(--border-light); }
+
+@keyframes navbar-search-grow {
+  from { max-width: 36px; opacity: 0; }
+  to   { max-width: 100%; opacity: 1; }
+}
+
 /* ─── VideoCard author link ──────────────────────────────────── */
 .video-card-author {
   color: var(--text-muted);
@@ -2059,24 +2081,38 @@ input[type="number"] {
 /* ─── Responsive: телефоны ──────────────────────────────────── */
 @media (max-width: 640px) {
   .navbar {
-    flex-wrap: wrap;
-    height: auto;
-    min-height: 56px;
-    padding: 8px 12px;
+    height: 56px;
+    padding: 0 12px;
     gap: 8px;
-  }
-
-  /* Поиск переезжает на отдельную строку под логотипом */
-  .navbar-search {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
-    margin: 0;
   }
 
   .navbar-actions {
     gap: 8px;
     margin-left: auto;
+  }
+
+  /* Свёрнутое состояние: вместо строки поиска — лупа рядом с кнопками */
+  .navbar-search { display: none; }
+
+  .navbar-search-toggle {
+    display: inline-flex;
+    margin-left: auto;
+  }
+  .navbar-search-toggle ~ .navbar-actions { margin-left: 0; }
+
+  /* Развёрнутое состояние: лупа + поле на всю шапку, остальное скрыто */
+  .navbar--search-open .navbar-logo,
+  .navbar--search-open .navbar-actions { display: none; }
+
+  .navbar--search-open .navbar-search-toggle { margin-left: 0; }
+
+  .navbar--search-open .navbar-search {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    animation: navbar-search-grow 0.25s ease;
   }
 
   .main-page,
