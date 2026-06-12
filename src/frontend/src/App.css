@@ -423,9 +423,10 @@ body {
 .category-scroll-btn--right { right: -18px; }
 
 /* ── Развёрнутая сетка ────────────────────────────────── */
+/* minmax + 1fr: карточки тянутся и заполняют всю ширину без пустых полос */
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 230px);
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 16px;
 }
 
@@ -2094,9 +2095,11 @@ input[type="number"] {
   /* Свёрнутое состояние: вместо строки поиска — лупа рядом с кнопками */
   .navbar-search { display: none; }
 
+  /* Лупа по центру свободного места между лого и кнопками */
   .navbar-search-toggle {
     display: inline-flex;
     margin-left: auto;
+    margin-right: auto;
   }
   .navbar-search-toggle ~ .navbar-actions { margin-left: 0; }
 
@@ -2104,7 +2107,7 @@ input[type="number"] {
   .navbar--search-open .navbar-logo,
   .navbar--search-open .navbar-actions { display: none; }
 
-  .navbar--search-open .navbar-search-toggle { margin-left: 0; }
+  .navbar--search-open .navbar-search-toggle { margin-left: 0; margin-right: 0; }
 
   .navbar--search-open .navbar-search {
     display: block;
@@ -2155,9 +2158,27 @@ input[type="number"] {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 
+  /* Карточки авторов: та же компоновка, но компактнее — по две в строке */
   .popular-authors-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
+
+  .author-card {
+    gap: 8px;
+    min-height: 0;
+    padding: 10px;
+  }
+
+  .author-card-thumb {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+  }
+
+  .author-card-avatar { font-size: 18px; }
+
+  .author-card-meta { font-size: 11px; }
 
   .video-player-content-row { gap: 24px; }
   .video-player-title-row { flex-wrap: wrap; }

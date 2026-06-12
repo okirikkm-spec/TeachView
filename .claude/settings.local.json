@@ -10,7 +10,9 @@
       "PowerShell(docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi 2>&1)",
       "PowerShell(docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d app 2>&1)",
       "Bash(grep -v \"^OPENAI_API_KEY=\\\\|^OPENAI_BASE_URL=\" .env)",
-      "Bash(mv .env.tmp .env)"
+      "Bash(mv .env.tmp .env)",
+      "mcp__MCP_DOCKER__browser_take_screenshot",
+      "mcp__MCP_DOCKER__browser_run_code"
     ]
   }
 }

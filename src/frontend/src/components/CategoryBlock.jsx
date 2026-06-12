@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
 import VideoCard from "./VideoCard";
 
-export default function CategoryBlock({ title, videos }) {
-    
-    const [expanded, setExpanded] = useState(false);
+export default function CategoryBlock({ title, videos, defaultExpanded = false }) {
+
+    const [expanded, setExpanded] = useState(defaultExpanded);
 
     const scrollRef = useRef(null);
 

@@ -289,6 +289,7 @@ export default function MainPage() {
                             <CategoryBlock
                                 title="Популярные видео"
                                 videos={popularVideos}
+                                defaultExpanded
                             />
                         )}
                     </>
