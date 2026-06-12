@@ -44,4 +44,7 @@ uploads/
 src/main/resources/application.properties
 .env
 *.env
+xray-config.json
+
+
 

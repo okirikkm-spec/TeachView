@@ -1,19 +1,26 @@
 spring.application.name=TeachView Website Backend
 
 # Параметры подключения
-spring.datasource.url=jdbc:postgresql://localhost:5432/teachview_db
-spring.datasource.username=YOUR_DB_USERNAME
-spring.datasource.password=YOUR_DB_PASSWORD
+spring.datasource.url=jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:teachview_db}
+spring.datasource.username=${DB_USER:postgres}
+spring.datasource.password=${DB_PASSWORD:password}
 
-spring.jpa.hibernate.ddl-auto=update
+# Миграции БД
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
 spring.jpa.show-sql=true
 
-jwt.secret=YOUR_JWT_SECRET_MINIMUM_32_CHARS
-jwt.expiration=86400000
+jwt.secret=${JWT_SECRET:CHANGE_ME_MINIMUM_32_CHARS_LONG_SECRET}
+jwt.expiration=${JWT_EXPIRATION:604800000}
 
 # Лимит загружаемых файлов
 spring.servlet.multipart.max-file-size=2GB
 spring.servlet.multipart.max-request-size=2GB
+
+# MinIO
+minio.endpoint=${MINIO_ENDPOINT:http://localhost:9000}
+minio.access-key=${MINIO_USER:minioadmin}
+minio.secret-key=${MINIO_PASSWORD:minioadmin}
+minio.bucket=${MINIO_BUCKET:teachview-videos}
 
 # Видео-кодирование: cpu (libx264, работает везде) | gpu (h264_nvenc, требуется NVIDIA + nvidia-container-toolkit)
 video.encoder=${VIDEO_ENCODER:cpu}
