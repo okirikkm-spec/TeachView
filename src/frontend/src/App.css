@@ -45,6 +45,7 @@ body {
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
 }
 
@@ -187,6 +188,7 @@ body {
 /* ─── Auth Page ─────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -526,6 +528,8 @@ body {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 
@@ -2019,4 +2023,138 @@ input[type="number"] {
 
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ─── AddToPlaylist dropdown ────────────────────────────────── */
+.playlist-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 240px;
+  max-width: calc(100vw - 24px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: 8px 0;
+}
+
+/* ─── Responsive: планшеты ──────────────────────────────────── */
+@media (max-width: 1024px) {
+  .main-page,
+  .profile-page,
+  .video-player-page,
+  .video-player-page-layout,
+  .page-content {
+    padding: 24px 20px;
+  }
+
+  /* Стрелки прокрутки не должны вылезать за края контейнера */
+  .category-scroll-btn--left  { left: 4px; }
+  .category-scroll-btn--right { right: 4px; }
+}
+
+/* ─── Responsive: телефоны ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  /* Поиск переезжает на отдельную строку под логотипом */
+  .navbar-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  .navbar-actions {
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .main-page,
+  .profile-page,
+  .video-player-page,
+  .video-player-page-layout,
+  .page-content {
+    padding: 16px 12px;
+  }
+
+  .card { padding: 20px 16px; }
+  .auth-card { padding: 28px 20px; }
+
+  .modal-overlay { padding: 12px; }
+  .modal-content { padding: 20px 16px; max-height: 92vh; }
+
+  /* 16px — иначе iOS Safari зумит страницу при фокусе на поле */
+  .input,
+  .navbar-search,
+  .video-select,
+  .tag-input {
+    font-size: 16px;
+  }
+
+  .main-page-controls {
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .category-block { margin-bottom: 32px; }
+
+  .category-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .category-scroll .video-card  { flex-basis: 190px; }
+  .category-scroll .author-card { flex-basis: 250px; }
+
+  .profile-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .popular-authors-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .video-player-content-row { gap: 24px; }
+  .video-player-title-row { flex-wrap: wrap; }
+  .video-player-title { font-size: 18px; }
+  .video-paywall-content { padding: 20px 16px; }
+
+  .profile-header { gap: 16px; }
+  .profile-avatar { width: 60px; height: 60px; font-size: 24px; }
+  .profile-name { font-size: 19px; }
+  .profile-edit-btn { margin-left: 0; width: 100%; }
+  .profile-edit-grid { gap: 24px; }
+
+  .comment-form-actions { flex-wrap: wrap; gap: 10px; }
+  .star-rating { flex-wrap: wrap; gap: 10px; }
+
+  /* Дропдаун выравнивается по правому краю кнопки, чтобы не уходить за экран */
+  .playlist-dropdown {
+    left: auto;
+    right: 0;
+  }
+}
+
+/* ─── Responsive: узкие телефоны ────────────────────────────── */
+@media (max-width: 400px) {
+  .navbar-logo { font-size: 16px; }
+  .category-scroll .video-card { flex-basis: 170px; }
+}
+
+/* ─── Тач-устройства ────────────────────────────────────────── */
+@media (hover: none) {
+  /* Hover на таче нет — кнопки на карточке видны всегда */
+  .video-card-actions { opacity: 1; }
+
+  /* Лента листается свайпом, стрелки не нужны */
+  .category-scroll-btn { display: none; }
 }

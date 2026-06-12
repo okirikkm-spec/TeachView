@@ -78,19 +78,7 @@ export default function AddToPlaylist({ videoId }) {
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          marginTop: '4px',
-          minWidth: '240px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow-lg)',
-          zIndex: 50,
-          padding: '8px 0',
-        }}>
+        <div className="playlist-dropdown">
           {playlists.length === 0 && !creating && (
             <p style={{ padding: '8px 16px', margin: 0, opacity: 0.5, fontSize: '0.85em' }}>
               Нет плейлистов
