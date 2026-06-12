@@ -2079,6 +2079,15 @@ input[type="number"] {
   .category-scroll-btn--right { right: 4px; }
 }
 
+/* Переход между мобильной и планшетной сеткой: без этого в диапазоне
+   641–720px влезали только 2 раздутые колонки (3 → 2 → 3 при растягивании) */
+@media (min-width: 641px) and (max-width: 720px) {
+  .category-grid,
+  .profile-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  }
+}
+
 /* ─── Responsive: телефоны ──────────────────────────────────── */
 @media (max-width: 640px) {
   .navbar {
